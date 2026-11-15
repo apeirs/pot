@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pot · BCH bounties</title>
+<meta name="description" content="Bounties locked in a Bitcoin Cash contract: only the judge can pay out, the poster can take it back after the deadline, anyone can add.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#fafaf7; --fg:#1c1c1a; --muted:#66665f; --line:#d9d9d2; --accent:#0a7d5a; --card:#ffffff;
+    --err:#b3261e; --warn-bg:#fff4d6; --main-bg:#8f1d14; --main-fg:#fff; --chip-bg:#1d4f91; --chip-fg:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --fg:#ececea; --muted:#a3a39c; --line:#35352f; --accent:#4cc9a0;
+    --card:#1d1d1b; --err:#ff8a80; --warn-bg:#3a3014; } }
+  * { box-sizing:border-box; }
+  body { background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; margin:0; }
+  .banner { padding:8px 16px; text-align:center; font-size:14px; }
+  .banner a { color:inherit; text-decoration:underline; }
+  .banner.mainnet { background:var(--main-bg); color:var(--main-fg); }
+  .banner.chipnet { background:var(--chip-bg); color:var(--chip-fg); }
+  header { max-width:760px; margin:0 auto; padding:16px; display:flex; gap:16px; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:26px; } header h1 a { color:inherit; text-decoration:none; }
+  header .tag { color:var(--muted); font-size:14px; }
+  #wallet { max-width:330px; font-size:14px; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--card); }
+  main { max-width:760px; margin:0 auto; padding:0 16px 48px; }
+  section { border-top:1px solid var(--line); padding:14px 0; }
+  h2 { font-size:20px; margin:0 0 8px; } h3 { font-size:17px; margin:0 0 8px; }
+  a { color:var(--accent); }
+  button, .btn { font:inherit; padding:8px 14px; border:1px solid var(--fg); background:var(--fg); color:var(--bg); border-radius:6px; cursor:pointer; text-decoration:none; display:inline-block; }
+  button:disabled { opacity:.4; cursor:default; }
+  button.link { background:none; color:var(--accent); border:none; padding:4px 6px; text-decoration:underline; }
+  .btn.small { padding:4px 10px; font-size:14px; }
+  input { font:inherit; width:100%; padding:7px 9px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:6px; }
+  input[type=radio] { width:auto; }
+  label { display:block; margin:8px 0 2px; }
+  .form label { font-weight:500; } .form .muted { font-weight:400; }
+  fieldset { border:1px solid var(--line); border-radius:8px; margin:10px 0; } legend { font-weight:500; }
+  .radio { display:flex; gap:8px; align-items:center; }
+  .row { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; } .row input { flex:1; min-width:180px; } .row label { flex:1; margin:0; }
+  .muted { color:var(--muted); font-size:14px; } .hint { color:var(--muted); font-size:14px; margin:2px 0 8px; }
+  .mono { font-family:ui-monospace,"SF Mono",Menlo,monospace; word-break:break-all; } .small { font-size:13px; } .tiny { font-size:11px; color:var(--muted); }
+  .err { color:var(--err); } .ok { color:var(--accent); }
+  .msg { margin:0 0 8px; } .msg:empty { display:none; }
+  .msg.err, .msg.ok, .msg.info { padding:10px 12px; border-radius:8px; border:1px solid currentColor; }
+  .msg.info { color:var(--fg); }
+  #busy { padding:10px 12px; border-radius:8px; background:var(--warn-bg); margin:0 0 8px; }
+  .warn { background:var(--warn-bg); padding:8px 10px; border-radius:6px; font-size:14px; }
+  .info { margin:8px 0; padding:8px 10px; border-radius:6px; border:1px dashed var(--line); }
+  .amount { font-size:32px; font-weight:600; margin-top:6px; }
+  .status { margin:8px 0; } .status.open { color:var(--accent); font-weight:500; }
+  .facts { padding-left:18px; margin:8px 0; }
+  .qr svg { width:200px; height:200px; background:#fff; padding:6px; border-radius:6px; display:block; }
+  .qrbox { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; margin-top:8px; } .qrbox > div:last-child { flex:1; min-width:200px; }
+  .potrow { display:block; border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:6px 0; color:inherit; text-decoration:none; background:var(--card); }
+  .potrow span { display:block; }
+  .hist { list-style:none; padding:0; margin:0; } .hist li { padding:4px 0; border-bottom:1px solid var(--line); }
+  .kind { display:inline-block; min-width:56px; font-weight:500; }
+  .skeleton { color:var(--muted); padding:16px 0; }
+  details summary { cursor:pointer; color:var(--accent); margin:6px 0; }
+  .how { padding:14px 0; border-top:1px solid var(--line); }
+  .spinner { display:inline-block; width:12px; height:12px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin 1s linear infinite; vertical-align:-1px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  footer { max-width:760px; margin:0 auto; padding:16px; color:var(--muted); font-size:13px; border-top:1px solid var(--line); }
+  @media (max-width:560px) { #wallet { max-width:none; width:100%; } }
+</style>
+</head>
+<body>
+<div id="netbanner" class="banner">Loading…</div>
+<header>
+  <div><h1><a href="#/">Pot</a></h1><div class="tag">Bounties you can trust, on Bitcoin Cash</div></div>
+  <div id="wallet"></div>
+</header>
+<main>
+  <div id="busy" hidden></div>
+  <div id="msg" class="msg" role="status" aria-live="polite"></div>
+  <div id="view"><p class="muted">Loading…</p></div>
+</main>
+<footer>
+  Static page, no server: the pot's terms are in its link and its money is in the contract.
+  <a href="https://github.com/apeirs/pot">Source</a> · by apeir
+</footer>
+<noscript><p style="padding:16px">Pot needs JavaScript to read the chain and talk to your wallet.</p></noscript>
+<script type="module" src="app.js?v=dev"></script>
+</body>
+</html>
