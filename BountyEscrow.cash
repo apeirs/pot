@@ -1,0 +1,26 @@
+pragma cashscript ^0.14.0;
+
+// Bounty escrow (spike). The poster locks BCH for a bounty.
+// - award: the poster pays the whole pot to a winner. The output must carry the pot (minus a capped fee)
+//   and must not go back to the poster's own P2PKH address.
+// - refund: after the deadline (block height), the poster can take the pot back, to their own address only.
+// Anyone can top up the bounty by sending more coins to the contract address.
+contract BountyEscrow(bytes20 posterPkh, int deadline, int maxFee) {
+    function award(pubkey posterPk, sig posterSig) {
+        require(hash160(posterPk) == posterPkh);
+        require(checkSig(posterSig, posterPk));
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 1);
+        require(tx.outputs[0].lockingBytecode != new LockingBytecodeP2PKH(posterPkh));
+        require(tx.outputs[0].value >= tx.inputs[this.activeInputIndex].value - maxFee);
+    }
+
+    function refund(pubkey posterPk, sig posterSig) {
+        require(hash160(posterPk) == posterPkh);
+        require(checkSig(posterSig, posterPk));
+        require(tx.time >= deadline);
+        require(tx.outputs.length == 1);
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(posterPkh));
+        require(tx.outputs[0].value >= tx.inputs[this.activeInputIndex].value - maxFee);
+    }
+}

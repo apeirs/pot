@@ -1,0 +1,380 @@
+{
+ "spec": "nostr-bch-bind v1",
+ "note": "throwaway keys derived from sha256(\"nostr-bch-bind test key: <label>\"); never fund",
+ "vectors": [
+  {
+   "name": "valid signmessage binding",
+   "expect": true,
+   "result": {
+    "ok": true,
+    "npub": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "addr": "bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen",
+    "created": 1794000000
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "signmessage",
+      "Hxa2Bc7VquIL7IWRY0r9IXxrqURhqzjZRI0Q306JLroCOOm/4M+iT8HkXDUiSkbR9DF6loHGB5TA7qDfoCH5p9A="
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "020fa5d423d3ee44a0f272c800fd92a7868099c3bf102a28e42827c962b2343e",
+    "sig": "ddfff1df3f3358a518a41026d6c224e3be428f215c00b41edf521fe1ccc44c32fc75bbf3369fbc303519322aecb9eb08288dde7ae5120a48bf62ac8e33aa5c4e"
+   }
+  },
+  {
+   "name": "valid wc-tx binding",
+   "expect": true,
+   "result": {
+    "ok": true,
+    "npub": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "addr": "bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen",
+    "created": 1794000000
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "wc-tx",
+      "{\"tx\":\"020000000118be7ab0f456fef950e0b83f70ccb306a9432c5ec917d7844732dd701c43c2a0020000006441fcd33ee275c6bd84fe450a01719f8e2cc9d83c15d4bf0f29e8097e965dc981a715fee1fea16a33d733b441a571a11b4a98e4f3b42e3e8f691dd539886d8979b86121038abd65ceb6d710fdfd606943913c65da588515e6c99ba8a61a67fed3bb7eaa9efeffffff020000000000000000346a116e6f7374722d6263682d62696e643a763120ba744982a1e3972ffec8239831ff3c5442b327c6ff1d81111736786efee31fdbe4250000000000001976a914bac268bb44e6310a9cebd6d2d339acd453b5905788ac005786f4\",\"source\":{\"valueSatoshis\":\"10000\",\"lockingBytecode\":\"76a914bac268bb44e6310a9cebd6d2d339acd453b5905788ac\"}}"
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "6fa1c808751fbfefd3e0267dd8be333f5fb48307833e9836895d92be505406dc",
+    "sig": "1add1d70b4ca9ccc894a34067950ca5054b45049d031b068dfb7ddd226f5cd7e071c583a3db861282ccec0c520e0b4afdb0c7949d3449b46fdabe2f8bee78610"
+   }
+  },
+  {
+   "name": "wrong address in content",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "address in content does not match the tags"
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qz6jhelj847zjuhyv78m53rffhh3p3xnx5ccs4a0xv\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "signmessage",
+      "Hxa2Bc7VquIL7IWRY0r9IXxrqURhqzjZRI0Q306JLroCOOm/4M+iT8HkXDUiSkbR9DF6loHGB5TA7qDfoCH5p9A="
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "13e5521d55b3e74372812298ac6d91871c23308ff3acce03bc1bf8c1f0517018",
+    "sig": "27ed9ceb034b0dfd6265672275456c3730fdd3b26d058effe5dcdb16f08110084e8cd8555d6fed8824f66d42ee2ec54d19b2031ff6d57e767b062c789cea6c2a"
+   }
+  },
+  {
+   "name": "event signed by a different npub",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "content npub is not the event signer"
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "signmessage",
+      "Hxa2Bc7VquIL7IWRY0r9IXxrqURhqzjZRI0Q306JLroCOOm/4M+iT8HkXDUiSkbR9DF6loHGB5TA7qDfoCH5p9A="
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "303b14424be9f3129420a4547682bf5e3c7ad4a613765853ad2fafe0b0f4912b",
+    "id": "1c245c9412670a529f85f9c30494e2489eca788b807ae0dda93cbf4555ae9cae",
+    "sig": "a3e0ee7ad33828870c13006a05d481057b8c85503971ff21b16b9408ae3abca922dcd7c150009372373b8c64d74ffcccfa575f5f4f8e32e0b45470b5f2dfb378"
+   }
+  },
+  {
+   "name": "created far from created_at (replay)",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "created is not the event time (±5 min)"
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794086400,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "signmessage",
+      "Hxa2Bc7VquIL7IWRY0r9IXxrqURhqzjZRI0Q306JLroCOOm/4M+iT8HkXDUiSkbR9DF6loHGB5TA7qDfoCH5p9A="
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "6386aa33434bb30abcaf64496bb7d9329e09d62a4d59a68e15fac6ab45434896",
+    "sig": "a178347895919893a364b3f753615b9b17e1799cae19a456602c70c0ff7a3855f0f71dcb8f92299a432b29a5b385dd511e1e15ff4eac9cf4e3d1fc5312b3548c"
+   }
+  },
+  {
+   "name": "signmessage by a different BCH key",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "signature is not by this address"
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "signmessage",
+      "H0Jya0RPqBQOpYycAO4AeJVBWBqFL1b3wi1lp7LGVmA+TcnFCzQl8nUpvVN/TsIaOQf0mLE3C9EUFU/1h+Gx4JY="
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "1f3209d35178f154abdfcf046f4923b32cc483c7518cd7e243c26a4d98af77e7",
+    "sig": "358edda88a959132c6835d2313041b3009294aa10469093b08fe8ba4957c0a519d48b67e51ac0818e56f9cdff746aa0ee5b5f519959b20a0eca73d3ee8e5ce7d"
+   }
+  },
+  {
+   "name": "wc-tx proof that could be broadcast (locktime 0)",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "proof tx is broadcastable (needs locktime >= 2100-01-01 and a non-final sequence)"
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "wc-tx",
+      "{\"tx\":\"020000000140546ba66784c06341712667d7d052ee593f34abef73b0d6a7bba18db88765550500000064418fd26b769459fb8470d0a18b60bc237115123b17fe6205d024b3dbda2733425183a29576402f6b3b30cac2f49d644dbca5557bfe6ee342d979b090af7c4af26e6121038abd65ceb6d710fdfd606943913c65da588515e6c99ba8a61a67fed3bb7eaa9efeffffff020000000000000000346a116e6f7374722d6263682d62696e643a763120ba744982a1e3972ffec8239831ff3c5442b327c6ff1d81111736786efee31fdbe4250000000000001976a914bac268bb44e6310a9cebd6d2d339acd453b5905788ac00000000\",\"source\":{\"valueSatoshis\":\"10000\",\"lockingBytecode\":\"76a914bac268bb44e6310a9cebd6d2d339acd453b5905788ac\"}}"
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "a1d90299e1f3e85c8dfef1be94e7cd9cdba5c418edd1c020e9ab8ded28a76ccc",
+    "sig": "ace696537e783d0f0172a4922545a1e382329602b546899ecf5af2f22e7393c181732a8bb257be1ae4ed6191ea26e860ab98df794b50b749b2dac872f66c5218"
+   }
+  },
+  {
+   "name": "wc-tx OP_RETURN with a different hash",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "OP_RETURN does not commit to this message"
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "wc-tx",
+      "{\"tx\":\"0200000001752081e69c37cde67a5729f834182dfdd5d10049e906a27f86f0520a9f309d17040000006441ea485f879619581399b304e4f1495552a121df31e29a55616cd99669c0908b016c7cceef89a942578789eefec21dadd4f514cb61574cbf788cd25afb53b341016121038abd65ceb6d710fdfd606943913c65da588515e6c99ba8a61a67fed3bb7eaa9efeffffff020000000000000000346a116e6f7374722d6263682d62696e643a7631200000000000000000000000000000000000000000000000000000000000000000e4250000000000001976a914bac268bb44e6310a9cebd6d2d339acd453b5905788ac005786f4\",\"source\":{\"valueSatoshis\":\"10000\",\"lockingBytecode\":\"76a914bac268bb44e6310a9cebd6d2d339acd453b5905788ac\"}}"
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "af72ad967442bfcb211f1e8dcc6421a2445a29e15a703cd535ee443ea32cc9be",
+    "sig": "ea531bbbcbd0714ef52ea481fe5d6d4aef98f7b52f19a907f12590ab30af1bf819d4bd0ff872bd8dce0480d969441e5bd6f72e91d4190889ce64f563d32133a7"
+   }
+  },
+  {
+   "name": "event edited after signing",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "bad nostr id or signature"
+   },
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000001,
+    "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+     ],
+     [
+      "proof",
+      "signmessage",
+      "Hxa2Bc7VquIL7IWRY0r9IXxrqURhqzjZRI0Q306JLroCOOm/4M+iT8HkXDUiSkbR9DF6loHGB5TA7qDfoCH5p9A="
+     ],
+     [
+      "alt",
+      "BCH address binding (nostr-bch-bind v1)"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "020fa5d423d3ee44a0f272c800fd92a7868099c3bf102a28e42827c962b2343e",
+    "sig": "381c75e122c4cf205e279716ca8964876aad32d7f0e8837fd01eecedbb823c8aa350cfe42acdf83ddf5671b90608ec508ed9b76aa8f3a9442ca1301d7126c8c4"
+   }
+  },
+  {
+   "name": "revocation overrides an older binding",
+   "expect": false,
+   "result": {
+    "ok": false,
+    "reason": "revoked"
+   },
+   "events": [
+    {
+     "kind": 30078,
+     "created_at": 1794000000,
+     "content": "nostr-bch-bind:v1\nnpub:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94\nbch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\ncreated:1794000000",
+     "tags": [
+      [
+       "d",
+       "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+      ],
+      [
+       "i",
+       "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+      ],
+      [
+       "proof",
+       "signmessage",
+       "Hxa2Bc7VquIL7IWRY0r9IXxrqURhqzjZRI0Q306JLroCOOm/4M+iT8HkXDUiSkbR9DF6loHGB5TA7qDfoCH5p9A="
+      ],
+      [
+       "alt",
+       "BCH address binding (nostr-bch-bind v1)"
+      ]
+     ],
+     "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+     "id": "020fa5d423d3ee44a0f272c800fd92a7868099c3bf102a28e42827c962b2343e",
+     "sig": "ddfff1df3f3358a518a41026d6c224e3be428f215c00b41edf521fe1ccc44c32fc75bbf3369fbc303519322aecb9eb08288dde7ae5120a48bf62ac8e33aa5c4e"
+    },
+    {
+     "kind": 30078,
+     "created_at": 1794000600,
+     "content": "revoked",
+     "tags": [
+      [
+       "d",
+       "bch-bind:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+      ],
+      [
+       "i",
+       "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen"
+      ]
+     ],
+     "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+     "id": "663b2c0a0d9f6193dfdff8e315115dec216426ffaaf6d5f5fa9d56570d82f7e0",
+     "sig": "6f8f3f732e5fb5c41c4fa2fea0f5591ac4c7d6fb60a7c9ca04ac86d356c549f2e0e3d9b0faa3c23c3aec78f216e927edb858c9ec3229f02eb0a7c725c95dcd45"
+    }
+   ]
+  }
+ ]
+}

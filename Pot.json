@@ -1,0 +1,57 @@
+{
+  "contractName": "Pot",
+  "constructorInputs": [
+    { "name": "posterPkh", "type": "bytes20" },
+    { "name": "judgePk", "type": "pubkey" },
+    { "name": "deadline", "type": "int" },
+    { "name": "maxFee", "type": "int" }
+  ],
+  "abi": [
+    {
+      "name": "award",
+      "inputs": [
+        { "name": "judgeSig", "type": "sig" }
+      ]
+    },
+    {
+      "name": "refund",
+      "inputs": [
+        { "name": "posterPk", "type": "pubkey" },
+        { "name": "posterSig", "type": "sig" }
+      ]
+    }
+  ],
+  "bytecode": "OP_4 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_5 OP_ROLL OP_2 OP_PICK OP_CHECKSIGVERIFY OP_TXOUTPUTCOUNT OP_1 OP_NUMEQUALVERIFY OP_0 OP_OUTPUTBYTECODE 76a914 OP_ROT OP_CAT 88ac OP_CAT OP_EQUAL OP_NOT OP_VERIFY OP_0 OP_OUTPUTBYTECODE 76a914 OP_ROT OP_HASH160 OP_CAT 88ac OP_CAT OP_EQUAL OP_NOT OP_VERIFY OP_0 OP_0 OP_BEGIN OP_DUP OP_UTXOBYTECODE OP_INPUTINDEX OP_UTXOBYTECODE OP_EQUALVERIFY OP_2DUP OP_UTXOVALUE OP_ADD OP_ROT OP_DROP OP_SWAP OP_1ADD OP_DUP OP_TXINPUTCOUNT OP_GREATERTHANOREQUAL OP_UNTIL OP_0 OP_OUTPUTVALUE OP_ROT OP_4 OP_ROLL OP_SUB OP_GREATERTHANOREQUAL OP_NIP OP_NIP OP_NIP OP_ELSE OP_4 OP_ROLL OP_1 OP_NUMEQUALVERIFY OP_4 OP_PICK OP_HASH160 OP_OVER OP_EQUALVERIFY OP_2ROT OP_CHECKSIGVERIFY OP_ROT OP_CHECKLOCKTIMEVERIFY OP_DROP OP_TXOUTPUTCOUNT OP_1 OP_NUMEQUALVERIFY OP_0 OP_OUTPUTBYTECODE 76a914 OP_ROT OP_CAT 88ac OP_CAT OP_EQUALVERIFY OP_0 OP_0 OP_BEGIN OP_DUP OP_UTXOBYTECODE OP_INPUTINDEX OP_UTXOBYTECODE OP_EQUALVERIFY OP_2DUP OP_UTXOVALUE OP_ADD OP_ROT OP_DROP OP_SWAP OP_1ADD OP_DUP OP_TXINPUTCOUNT OP_GREATERTHANOREQUAL OP_UNTIL OP_0 OP_OUTPUTVALUE OP_ROT OP_4 OP_ROLL OP_SUB OP_GREATERTHANOREQUAL OP_NIP OP_NIP OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\n// Pot: a BCH bounty escrow.\n// - award: the judge pays the whole pot (every UTXO of this contract in the tx, so top-ups are swept too)\n//   to one output, minus a capped fee. The output may not be the poster's or the judge's own P2PKH.\n// - refund: from the deadline block on, the poster takes the whole pot back, to their own P2PKH only.\n// Top-ups need no function: anyone pays the contract address.\ncontract Pot(bytes20 posterPkh, pubkey judgePk, int deadline, int maxFee) {\n    function award(sig judgeSig) {\n        require(checkSig(judgeSig, judgePk));\n        require(tx.outputs.length == 1);\n        require(tx.outputs[0].lockingBytecode != new LockingBytecodeP2PKH(posterPkh));\n        require(tx.outputs[0].lockingBytecode != new LockingBytecodeP2PKH(hash160(judgePk)));\n        int total = 0;\n        int i = 0;\n        do {\n            require(tx.inputs[i].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);\n            total = total + tx.inputs[i].value;\n            i = i + 1;\n        } while (i < tx.inputs.length);\n        require(tx.outputs[0].value >= total - maxFee);\n    }\n\n    function refund(pubkey posterPk, sig posterSig) {\n        require(hash160(posterPk) == posterPkh);\n        require(checkSig(posterSig, posterPk));\n        require(tx.time >= deadline);\n        require(tx.outputs.length == 1);\n        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(posterPkh));\n        int total = 0;\n        int i = 0;\n        do {\n            require(tx.inputs[i].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);\n            total = total + tx.inputs[i].value;\n            i = i + 1;\n        } while (i < tx.inputs.length);\n        require(tx.outputs[0].value >= total - maxFee);\n    }\n}\n",
+  "fingerprint": "60fe794f0a2101df274b8b0c57b343ccdab2300e07c0874337488d12d25be9ca",
+  "debug": {
+    "bytecode": "5479009c63557a5279adc4519d00cd0376a9147b7e0288ac7e87916900cd0376a9147ba97e0288ac7e87916900006576c7c0c7886ec6937b757c8b76c3a26600cc7b547a94a277777767547a519d5479a9788871ad7bb175c4519d00cd0376a9147b7e0288ac7e8800006576c7c0c7886ec6937b757c8b76c3a26600cc7b547a94a2777768",
+    "sourceMap": "9:4:22:5;;;;;10:25:10:33;;:35::42;;:8::45:1;11:16:11:33:0;:37::38;:8::40:1;12:27:12:28:0;:16::45:1;:49::84:0;:74::83;:49::84:1;;;:16;;:8::86;13:27:13:28:0;:16::45:1;:49::91:0;:82::89;:74::90:1;:49::91;;;:16;;:8::93;14:20:14:21:0;15:16:15:17;16:8:20:39;17:30:17:31;:20::48:1;:62::83:0;:52::100:1;:12::102;18:20:18:39:0;:28::46:1;:20;:12::47;;;19::19:22;20:17:20:18:0;:21::37;16:8::39:1;;21:27:21:28:0;:16::35:1;:39::44:0;:47::53;;:39:::1;:8::55;9:33:22:5;;;:4;24::38::0;;;;25:24:25:32;;:16::33:1;:37::46:0;:8::48:1;26:25:26:44:0;:8::47:1;27:27:27:35:0;:8::37:1;;28:16:28:33:0;:37::38;:8::40:1;29:27:29:28:0;:16::45:1;:49::84:0;:74::83;:49::84:1;;;:8::86;30:20:30:21:0;31:16:31:17;32:8:36:39;33:30:33:31;:20::48:1;:62::83:0;:52::100:1;:12::102;34:20:34:39:0;:28::46:1;:20;:12::47;;;35::35:22;36:17:36:18:0;:21::37;32:8::39:1;;37:27:37:28:0;:16::35:1;:39::44:0;:47::53;;:39:::1;:8::55;24:52:38:5;;8:0:39:1",
+    "logs": [],
+    "requires": [
+      { "ip": 13, "line": 10 },
+      { "ip": 16, "line": 11 },
+      { "ip": 26, "line": 12 },
+      { "ip": 37, "line": 13 },
+      { "ip": 45, "line": 17 },
+      { "ip": 64, "line": 21 },
+      { "ip": 76, "line": 25 },
+      { "ip": 78, "line": 26 },
+      { "ip": 80, "line": 27 },
+      { "ip": 84, "line": 28 },
+      { "ip": 92, "line": 29 },
+      { "ip": 100, "line": 33 },
+      { "ip": 119, "line": 37 }
+    ],
+    "sourceTags": "60:62:sc;115:116:sc"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-11-06T14:08:59.083Z"
+}

@@ -1,0 +1,56 @@
+{
+  "contractName": "BountyEscrow",
+  "constructorInputs": [
+    { "name": "posterPkh", "type": "bytes20" },
+    { "name": "deadline", "type": "int" },
+    { "name": "maxFee", "type": "int" }
+  ],
+  "abi": [
+    {
+      "name": "award",
+      "inputs": [
+        { "name": "posterPk", "type": "pubkey" },
+        { "name": "posterSig", "type": "sig" }
+      ]
+    },
+    {
+      "name": "refund",
+      "inputs": [
+        { "name": "posterPk", "type": "pubkey" },
+        { "name": "posterSig", "type": "sig" }
+      ]
+    }
+  ],
+  "bytecode": "OP_3 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_4 OP_PICK OP_HASH160 OP_OVER OP_EQUALVERIFY OP_2ROT OP_CHECKSIGVERIFY OP_TXINPUTCOUNT OP_1 OP_NUMEQUALVERIFY OP_TXOUTPUTCOUNT OP_1 OP_NUMEQUALVERIFY OP_0 OP_OUTPUTBYTECODE 76a914 OP_ROT OP_CAT 88ac OP_CAT OP_EQUAL OP_NOT OP_VERIFY OP_0 OP_OUTPUTVALUE OP_INPUTINDEX OP_UTXOVALUE OP_3 OP_ROLL OP_SUB OP_GREATERTHANOREQUAL OP_NIP OP_NIP OP_ELSE OP_3 OP_ROLL OP_1 OP_NUMEQUALVERIFY OP_3 OP_PICK OP_HASH160 OP_OVER OP_EQUALVERIFY OP_4 OP_ROLL OP_4 OP_ROLL OP_CHECKSIGVERIFY OP_SWAP OP_CHECKLOCKTIMEVERIFY OP_DROP OP_TXOUTPUTCOUNT OP_1 OP_NUMEQUALVERIFY OP_0 OP_OUTPUTBYTECODE 76a914 OP_ROT OP_CAT 88ac OP_CAT OP_EQUALVERIFY OP_0 OP_OUTPUTVALUE OP_INPUTINDEX OP_UTXOVALUE OP_ROT OP_SUB OP_GREATERTHANOREQUAL OP_ENDIF",
+  "source": "pragma cashscript ^0.14.0;\n\n// Bounty escrow (spike). The poster locks BCH for a bounty.\n// - award: the poster pays the whole pot to a winner. The output must carry the pot (minus a capped fee)\n//   and must not go back to the poster's own P2PKH address.\n// - refund: after the deadline (block height), the poster can take the pot back, to their own address only.\n// Anyone can top up the bounty by sending more coins to the contract address.\ncontract BountyEscrow(bytes20 posterPkh, int deadline, int maxFee) {\n    function award(pubkey posterPk, sig posterSig) {\n        require(hash160(posterPk) == posterPkh);\n        require(checkSig(posterSig, posterPk));\n        require(tx.inputs.length == 1);\n        require(tx.outputs.length == 1);\n        require(tx.outputs[0].lockingBytecode != new LockingBytecodeP2PKH(posterPkh));\n        require(tx.outputs[0].value >= tx.inputs[this.activeInputIndex].value - maxFee);\n    }\n\n    function refund(pubkey posterPk, sig posterSig) {\n        require(hash160(posterPk) == posterPkh);\n        require(checkSig(posterSig, posterPk));\n        require(tx.time >= deadline);\n        require(tx.outputs.length == 1);\n        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(posterPkh));\n        require(tx.outputs[0].value >= tx.inputs[this.activeInputIndex].value - maxFee);\n    }\n}\n",
+  "fingerprint": "ae5fb5c2b39d7823cd7e6b413dfdb189403a5ee8bf64c55449b1afa011879d3c",
+  "debug": {
+    "bytecode": "5379009c635479a9788871adc3519dc4519d00cd0376a9147b7e0288ac7e87916900ccc0c6537a94a2777767537a519d5379a97888547a547aad7cb175c4519d00cd0376a9147b7e0288ac7e8800ccc0c67b94a268",
+    "sourceMap": "9:4:16:5;;;;;10:24:10:32;;:16::33:1;:37::46:0;:8::48:1;11:25:11:44:0;:8::47:1;12:16:12:32:0;:36::37;:8::39:1;13:16:13:33:0;:37::38;:8::40:1;14:27:14:28:0;:16::45:1;:49::84:0;:74::83;:49::84:1;;;:16;;:8::86;15:27:15:28:0;:16::35:1;:49::70:0;:39::77:1;:80::86:0;;:39:::1;:8::88;9:51:16:5;;:4;18::25::0;;;;19:24:19:32;;:16::33:1;:37::46:0;:8::48:1;20:25:20:34:0;;:36::44;;:8::47:1;21:27:21:35:0;:8::37:1;;22:16:22:33:0;:37::38;:8::40:1;23:27:23:28:0;:16::45:1;:49::84:0;:74::83;:49::84:1;;;:8::86;24:27:24:28:0;:16::35:1;:49::70:0;:39::77:1;:80::86:0;:39:::1;:8::88;8:0:26:1",
+    "logs": [],
+    "requires": [
+      { "ip": 12, "line": 10 },
+      { "ip": 14, "line": 11 },
+      { "ip": 17, "line": 12 },
+      { "ip": 20, "line": 13 },
+      { "ip": 30, "line": 14 },
+      { "ip": 39, "line": 15 },
+      { "ip": 50, "line": 19 },
+      { "ip": 55, "line": 20 },
+      { "ip": 57, "line": 21 },
+      { "ip": 61, "line": 22 },
+      { "ip": 69, "line": 23 },
+      { "ip": 77, "line": 24 }
+    ],
+    "sourceTags": "36:37:sc"
+  },
+  "compiler": {
+    "name": "cashc",
+    "version": "0.14.0",
+    "options": {
+      "enforceFunctionParameterTypes": true,
+      "enforceLocktimeGuard": true
+    }
+  },
+  "updatedAt": "2026-11-06T13:43:30.772Z"
+}

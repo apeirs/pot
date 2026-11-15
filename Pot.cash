@@ -1,0 +1,39 @@
+pragma cashscript ^0.14.0;
+
+// Pot: a BCH bounty escrow.
+// - award: the judge pays the whole pot (every UTXO of this contract in the tx, so top-ups are swept too)
+//   to one output, minus a capped fee. The output may not be the poster's or the judge's own P2PKH.
+// - refund: from the deadline block on, the poster takes the whole pot back, to their own P2PKH only.
+// Top-ups need no function: anyone pays the contract address.
+contract Pot(bytes20 posterPkh, pubkey judgePk, int deadline, int maxFee) {
+    function award(sig judgeSig) {
+        require(checkSig(judgeSig, judgePk));
+        require(tx.outputs.length == 1);
+        require(tx.outputs[0].lockingBytecode != new LockingBytecodeP2PKH(posterPkh));
+        require(tx.outputs[0].lockingBytecode != new LockingBytecodeP2PKH(hash160(judgePk)));
+        int total = 0;
+        int i = 0;
+        do {
+            require(tx.inputs[i].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+            total = total + tx.inputs[i].value;
+            i = i + 1;
+        } while (i < tx.inputs.length);
+        require(tx.outputs[0].value >= total - maxFee);
+    }
+
+    function refund(pubkey posterPk, sig posterSig) {
+        require(hash160(posterPk) == posterPkh);
+        require(checkSig(posterSig, posterPk));
+        require(tx.time >= deadline);
+        require(tx.outputs.length == 1);
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(posterPkh));
+        int total = 0;
+        int i = 0;
+        do {
+            require(tx.inputs[i].lockingBytecode == tx.inputs[this.activeInputIndex].lockingBytecode);
+            total = total + tx.inputs[i].value;
+            i = i + 1;
+        } while (i < tx.inputs.length);
+        require(tx.outputs[0].value >= total - maxFee);
+    }
+}
