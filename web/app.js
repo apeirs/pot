@@ -27,8 +27,11 @@ const SCAN = 10; // wallet addresses read per chain (receive, change)
 const RELAY_TIMEOUT_MS = 15000;
 const RESUME_TIMEOUT_MS = 20000;
 const FEATURED = { // pot links shown on the home page
-  mainnet: [{ title: 'Pot mainnet demo: review the Pot contract', role: 'funded, topped up and awarded on mainnet',
-    link: '1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d' }],
+  mainnet: [
+    { title: 'BLAZE 2026 demo pot', role: 'open: add to it', link: '1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.979645.5000.2ab2c2e8333f7708' },
+    { title: 'Pot mainnet demo: review the Pot contract', role: 'funded, topped up and awarded', link: '1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d' },
+    { title: 'Pot mainnet demo B: the refund path', role: 'refunded after its deadline', link: '1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977443.5000.805a23cfd99dae88' },
+  ],
   chipnet: [],
 };
 
