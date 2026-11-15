@@ -81,11 +81,20 @@ prior art for paying an npub) is read and fully verified, signature from its `i`
 (kind 31234) carries no BCH proof on the relay, so it is shown greyed out as unverifiable, never as verified.
 
 ## Wallets
-| Wallet | Network | Create | Top-up | Award (contract input) | Refund (contract input) |
-|---|---|---|---|---|---|
-| Paytaca browser extension 0.27.5 | mainnet | yes | yes | yes | yes |
-| `@wizardconnect/wallet` test wallet (`e2e/wallet.mjs`) | chipnet | yes | yes | yes | yes |
-| Cashonize, Selene | | not tried yet | | | |
+| Wallet | Network | Create | Top-up | Award (contract input) | Refund (contract input) | Identity proof (wc-tx) |
+|---|---|---|---|---|---|---|
+| Paytaca browser extension 0.27.5 | mainnet | yes | yes | yes | yes | yes |
+| Selene web app v2026.10.02 (app.selene.cash) | mainnet | yes | not tried | yes | not tried | not tried |
+| `@wizardconnect/wallet` test wallet (`e2e/wallet.mjs`) | chipnet | yes | yes | yes | yes | yes |
+| Cashonize | | not tried yet | | | | |
+
+- **Selene** signs the CashScript contract input: a pot it created ([`5e14240d…`](https://blockchair.com/bitcoin-cash/transaction/5e14240dfea4618e65c6689fb9940e64ab887a6846bc6814945f781559c97c7f))
+  was awarded by Selene as judge to another Selene address ([`335210ab…`](https://blockchair.com/bitcoin-cash/transaction/335210abaec46fe803e800c998f54cbe0cb27d16c27424b56ce944959de846ea)).
+  Its signature prompt names the action and marks the winner output as its own. Selene's first `wallet_ready` carries
+  no keys and the next one does; the page now waits for a `wallet_ready` with a receive key (before this fix, pairing
+  Selene ended in "The wallet did not share an address").
+- **Paytaca identity proof**: on mainnet the wallet signed the binding transaction (prompt "Signature only, never sent"),
+  the page verified it, and a broadcast attempt was refused by the network: `bad-txns-nonfinal (code 64)`.
 
 
 ## Self-audit

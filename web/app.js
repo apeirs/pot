@@ -28,6 +28,7 @@ const SOURCE = 'https://github.com/apeirs/pot/blob/main/contracts/Pot.cash';
 const SCAN = 10; // wallet addresses read per chain (receive, change)
 const RELAY_TIMEOUT_MS = 15000;
 const RESUME_TIMEOUT_MS = 20000;
+const NO_ADDRESS_MS = 15000; // how long to wait for a wallet_ready that carries the receive key
 const FEATURED = { // pot links shown on the home page
   mainnet: [
     { title: 'BLAZE 2026 demo pot', role: 'open: add to it', link: '1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.979645.5000.2ab2c2e8333f7708' },
@@ -108,7 +109,7 @@ const state = (window.__pot = {
 });
 const ui = { title: '', url: '', amount: '0.0002', date: '', height: '', judge: 'me', judgeKey: '', topup: '0.0001', winner: '' };
 const provider = new FailoverProvider(NET);
-let dapp = null, relay = null, readyHandled = false, abort = null, relayTimer = null, resumeTimer = null;
+let dapp = null, relay = null, readyHandled = false, noAddrTimer = null, abort = null, relayTimer = null, resumeTimer = null;
 const id = makeIdentity({
   $, esc, NET, state, provider, getDapp: () => dapp, walletCoins: () => walletCoins(), setMsg: (...a) => setMsg(...a),
   setBusy: (...a) => setBusy(...a), action: (fn) => action(fn), copy: (...a) => copy(...a), addrLink: (...a) => addrLink(...a), short,
@@ -163,6 +164,7 @@ async function stopRelay() {
 }
 
 function resetWallet() {
+  clearTimeout(noAddrTimer);
   Object.assign(state, { connected: false, resumed: false, walletName: null, addr: null, judgeKey: null, pkh: null, balance: null, uri: null, qrUri: null });
   readyHandled = false;
   renderWallet();
@@ -222,7 +224,16 @@ async function onReady(msg) {
     const paths = dapp.getSessionPaths?.() ?? [];
     if (NET.name === 'mainnet' && paths.some((p) => /^tpub/.test(String(p.xpub)))) return await refuseWallet(TEXT.testnetWallet);
     const pub0 = dapp.getPubkey(0, 0n);
-    if (!pub0) throw new Error('The wallet did not share an address. Connect again.');
+    if (!pub0) {
+      // Some wallets (Selene) send wallet_ready more than once and the first one may carry no receive xpub:
+      // wait for the next one, and give up only if none brings an address.
+      console.info('[pot] wallet_ready without a receive key; paths:', paths.map((p) => p.name).join(',') || 'none');
+      readyHandled = false;
+      clearTimeout(noAddrTimer);
+      noAddrTimer = setTimeout(() => { if (!state.connected) fail(new Error('The wallet did not share an address. Connect again.')); }, NO_ADDRESS_MS);
+      return;
+    }
+    clearTimeout(noAddrTimer);
     Object.assign(state, {
       connected: true, walletName: msg?.wallet_name ?? dapp.walletName ?? state.walletName ?? 'wallet',
       addr: p2pkhAddress(pub0, NET.prefix), judgeKey: binToHex(pub0), pkh: binToHex(hash160(pub0)), uri: null, qrUri: null,

@@ -55,6 +55,8 @@ still get different addresses.
 1. The page opens a relay session (`wss://relay.riften.net`) and shows a QR and a link.
 2. The wallet scans it and answers with its xpubs. The page derives `receive/0` (the user's address and judge key) and
    reads the coins of the first 10 receive and change addresses.
+   Selene sends `wallet_ready` more than once and the first carries no keys, so the page ignores a `wallet_ready`
+   without a receive key and waits up to 15 s for the next.
 3. WizardConnect carries no network field, so the page checks: a testnet key (tpub) is refused on mainnet, and a
    wallet with no coins on this network but coins on the other one is refused with a link to the right page.
 4. For each action the page sends a sign request (the unsigned transaction, its source outputs with contract details,
