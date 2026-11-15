@@ -26,7 +26,11 @@ const SOURCE = 'https://github.com/apeirs/pot/blob/main/contracts/Pot.cash';
 const SCAN = 10; // wallet addresses read per chain (receive, change)
 const RELAY_TIMEOUT_MS = 15000;
 const RESUME_TIMEOUT_MS = 20000;
-const FEATURED = { mainnet: [], chipnet: [] }; // pot links shown on the home page
+const FEATURED = { // pot links shown on the home page
+  mainnet: [{ title: 'Pot mainnet demo: review the Pot contract', role: 'funded, topped up and awarded on mainnet',
+    link: '1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d' }],
+  chipnet: [],
+};
 
 const TEXT = {
   rejected: "The wallet didn't sign. Nothing was sent.",
@@ -63,6 +67,8 @@ const bch = (sats) => {
   const s = BigInt(sats ?? 0), neg = s < 0n, a = neg ? -s : s;
   return `${neg ? '-' : ''}${a / 100000000n}.${String(a % 100000000n).padStart(8, '0')} BCH`;
 };
+/** ` "Title"` for a wallet prompt, or nothing when the pot has no title. */
+const named = (title) => (title ? ` "${title}"` : '');
 const satsText = (sats) => `${Number(sats ?? 0).toLocaleString('en')} sats`;
 function parseBch(text) {
   const m = /^\s*(\d{0,8})(?:\.(\d{0,8}))?\s*$/.exec(String(text ?? ''));
@@ -446,7 +452,7 @@ const createPot = action(async () => {
   const coins = await walletCoins();
   const tx = buildPayment({
     provider, coins, to: C.address, amount, extraOutputs: [{ to: meta, amount: 0n }], changeTo: state.addr,
-    userPrompt: `Create the pot "${title}": lock ${bch(amount)} until block ${deadline}`,
+    userPrompt: `Create the pot${named(title)}: lock ${bch(amount)} until block ${deadline}`,
   });
   const txid = await signAndSend(tx, 'create');
   const link = encodePotLink(params);
@@ -632,7 +638,7 @@ const topUp = action(async () => {
   if (amount === null || amount < MIN_TOPUP) throw new Error(`A top-up must be at least ${bch(MIN_TOPUP)}: smaller ones cost more in fees to pay out than they add.`);
   const coins = await walletCoins();
   const tx = buildPayment({ provider, coins, to: pot.address, amount, changeTo: state.addr,
-    userPrompt: `Add ${bch(amount)} to the pot "${pot.meta?.title ?? ''}". A gift: if nobody wins, it goes to the poster.` });
+    userPrompt: `Add ${bch(amount)} to the pot${named(pot.meta?.title)}. A gift: if nobody wins, it goes to the poster.` });
   const txid = await signAndSend(tx, 'top-up');
   setBusy('Waiting for the network…');
   await waitFor(async () => (await provider.getUtxos(pot.address)).some((u) => u.txid === txid));
@@ -664,8 +670,8 @@ async function sweep(kind) {
   const tx = buildSweep({
     provider, params: p, kind, utxos, to, locktime, signPath: ['receive', 0],
     userPrompt: (plan) => (kind === 'award'
-      ? `Award the pot "${pot.meta?.title ?? ''}": ${bch(plan.amount)} to ${to}`
-      : `Refund the pot "${pot.meta?.title ?? ''}": ${bch(plan.amount)} back to you`),
+      ? `Award the pot${named(pot.meta?.title)}: ${bch(plan.amount)} to ${to}`
+      : `Refund the pot${named(pot.meta?.title)}: ${bch(plan.amount)} back to you`),
   });
   const txid = await signAndSend(tx, kind);
   pot[`${kind}Txid`] = txid;

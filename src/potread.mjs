@@ -9,7 +9,8 @@
 //   OP_RETURN <"POT1"> <title, UTF-8, <= 60 characters> <url, UTF-8>
 // Whole output script <= 223 bytes (BCH standardness). Only the FIRST pay-in tx's POT1 output counts:
 // anyone can top up and attach their own OP_RETURN, so later ones are ignored. Pass `posterPkh` to
-// readPot to also learn whether the funding tx was signed by the poster (meta.byPoster).
+// readPot to also learn whether the funding tx came from the poster (meta.byPoster: 'input' = an input signed by
+// the poster's key, 'change' = an output pays the poster's P2PKH, false = neither).
 import { ElectrumClient } from '@electrum-cash/network';
 import {
   binToHex, hexToBin, utf8ToBin, binToUtf8, sha256, hash160, hash256, decodeTransaction, encodeDataPush,
@@ -172,15 +173,21 @@ async function readFrom(server, contract, opts) {
   }
 }
 
-function classify(txs, contract, opts) {
+export function classify(txs, contract, opts) {
   const lockHex = binToHex(contract.lockingBytecode);
   txs = chronological(txs);
   const contractOuts = new Set();
   for (const { txid, tx } of txs) tx.outputs.forEach((o, n) => { if (binToHex(o.lockingBytecode) === lockHex) contractOuts.add(`${txid}:${n}`); });
 
-  // meta: with posterPkh, the earliest POT1 in a pay-in signed by the poster (a stranger's top-up can carry a
-  // POT1 too, even in the same block as the fund); without it, or if none is the poster's, the earliest POT1.
+  // meta: with posterPkh, the earliest POT1 in a pay-in signed by the poster's key, else the earliest whose change
+  // goes to the poster (an HD wallet such as Paytaca funds from any of its addresses, but the page sends the change
+  // to the poster's address; mainnet 11-15). A stranger's top-up can carry a POT1 too, even in the same block as the
+  // fund; without posterPkh, or if none is the poster's, the earliest POT1.
   const want = opts.posterPkh ? (typeof opts.posterPkh === 'string' ? opts.posterPkh : binToHex(opts.posterPkh)) : null;
+  const posterLock = want ? `76a914${want}88ac` : null;
+  const fromPoster = (tx) => (!want ? undefined
+    : tx.inputs.some((inp) => { const pk = p2pkhPubkey(inp.unlockingBytecode); return pk && binToHex(hash160(pk)) === want; }) ? 'input'
+      : tx.outputs.some((o) => binToHex(o.lockingBytecode) === posterLock) ? 'change' : false);
   const metas = [];
   let funded = false;
   const history = txs.map(({ txid, height, tx }) => {
@@ -199,12 +206,12 @@ function classify(txs, contract, opts) {
       const kind = funded ? 'topup' : 'fund';
       funded = true;
       const op = tx.outputs.map((o) => parsePotMeta(o.lockingBytecode)).find(Boolean);
-      if (op) metas.push({ ...op, txid, byPoster: want ? tx.inputs.some((inp) => { const pk = p2pkhPubkey(inp.unlockingBytecode); return pk && binToHex(hash160(pk)) === want; }) : undefined });
+      if (op) metas.push({ ...op, txid, byPoster: fromPoster(tx) });
       return { txid, height, kind, sats: sum(toContract) };
     }
     return { txid, height, kind: 'other', sats: 0n };
   });
-  let meta = (want && metas.find((m) => m.byPoster)) || metas[0] || null;
+  let meta = (want && (metas.find((m) => m.byPoster === 'input') || metas.find((m) => m.byPoster === 'change'))) || metas[0] || null;
   if (meta && !want) { const { byPoster, ...m } = meta; meta = m; }
   return { history, meta };
 }

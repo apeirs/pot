@@ -16,7 +16,9 @@ address. The five constructor values are the pot's whole state; they never chang
 
 Three ways money moves:
 1. **Top-up** (no contract function): anyone pays the contract address. The first funding transaction also carries an
-   OP_RETURN `POT1 <title> <url>` (at most 223 bytes); later ones are ignored for the title.
+   OP_RETURN `POT1 <title> <url>` (at most 223 bytes). The page takes the title from the earliest pay-in that comes
+   from the poster (an input signed by the poster's key, else change paid to the poster's address, which is how an HD
+   wallet funds from other addresses); a stranger's top-up with its own POT1 is ignored.
 2. **Award** `award(judgeSig)`: signed by the judge key. Exactly one output, which is not the poster's or the judge's
    P2PKH. Every input must be this same contract, and the output must carry at least the sum of the inputs minus
    `maxFee`. So the judge can choose the winner, but can't skim, split, or pay themselves.

@@ -10,15 +10,24 @@
 Live: **https://apeir.dk/online/pot/** (mainnet) · https://apeir.dk/online/pot/?net=chipnet (free test coins)
 
 ## Try it in 2 minutes
-1. Open **TODO (link to the live mainnet pot)**: a mainnet bounty we funded, its locked balance, its deadline (date and
-   block) and its history.
-2. **Add to it** with 0.00002 BCH or more: scan the QR under "Or pay from any BCH wallet" with any BCH wallet, or connect
-   Cashonize or Paytaca with WizardConnect (Connect wallet, top right) and press "Send from my wallet". The pot updates
-   within seconds.
-3. Optional: **create** your own pot (Create a pot). Put the deadline 1-2 hours out, and after it you can take the pot
-   back yourself with "Take the pot back".
-4. On chipnet the same page runs with free test coins: https://apeir.dk/online/pot/?net=chipnet
-5. Mainnet proof, one transaction for each path: create TODO, top-up TODO, award TODO, refund TODO.
+1. Open **[the mainnet demo pot](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d)** (also under Featured on the home page): funded, topped up and awarded on
+   mainnet. Its history links every transaction; the award paid both of its coins to one winner in one transaction.
+2. **Create** your own pot: Connect wallet (top right) with Paytaca or Cashonize over WizardConnect, then Create a pot
+   (0.0001 BCH at least). Put the deadline 1-2 hours out.
+3. **Add to it**: scan the QR under "Or pay from any BCH wallet" with any BCH wallet, or press "Send from my wallet".
+   The pot updates within seconds.
+4. After the deadline, take it back with "Take the pot back"; before it, as the judge, award it to another address.
+5. On chipnet the same page runs with free test coins: https://apeir.dk/online/pot/?net=chipnet
+
+**Mainnet proof**, one transaction per path, signed by the Paytaca browser extension over WizardConnect:
+
+| Path | Transaction | What it shows |
+|---|---|---|
+| create (pot A) | [`8457e87d…`](https://blockchair.com/bitcoin-cash/transaction/8457e87d85d1c3af53418b6a7268ef45c46f3235d9f176bdb48a0961d9fd7075) | 0.0002 BCH into the contract, title in a POT1 OP_RETURN |
+| top-up (pot A) | [`48dcebb3…`](https://blockchair.com/bitcoin-cash/transaction/48dcebb38f1c5f33026c287b0850df52aa9349e2f0b26f0c5b736118d9da1c73) | 0.00002 BCH more, a second coin |
+| award (pot A) | [`d7f47d5e…`](https://blockchair.com/bitcoin-cash/transaction/d7f47d5e88c30338fb0c59937bc202016859ed93efb5f9b92b760cc40bebecba) | the judge's wallet signs two contract inputs; 0.000213 BCH to the winner, fee 700 sats |
+| create (pot B) | [`9d17abd3…`](https://blockchair.com/bitcoin-cash/transaction/9d17abd3b01ad7432bba83558a05bed2941bfeef4854df7d8082a940cf04e5f8) | 0.0001 BCH, deadline block 977,443 ([pot B](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977443.5000.805a23cfd99dae88)) |
+| refund (pot B) | TODO (after block 977,443) | the poster takes it back after the deadline |
 
 WizardConnect shares your wallet's public keys (xpub) with the page, as every WizardConnect dapp does. Use a fresh
 wallet if that matters to you.
@@ -40,6 +49,14 @@ the hunter sees it locked, the poster can't pull it back early, and the rules ar
   CashScript placeholders and the judge's or poster's wallet fills in its signature.
 
 More in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Wallets
+| Wallet | Network | Create | Top-up | Award (contract input) | Refund (contract input) |
+|---|---|---|---|---|---|
+| Paytaca browser extension 0.27.5 | mainnet | yes | yes | yes | TODO |
+| `@wizardconnect/wallet` test wallet (`e2e/wallet.mjs`) | chipnet | yes | yes | yes | yes |
+| Cashonize, Selene | | not tried yet | | | |
+
 
 ## Self-audit
 Each rule of the contract, the attack it stops, and the test that tries it (`npm test`, mock network):
@@ -73,7 +90,7 @@ Each rule of the contract, the attack it stops, and the test that tries it (`npm
 ## Run it
 ```
 npm ci
-npm test        # contract, sweep, app and network tests on a mock network (82 cases)
+npm test        # contract, sweep, app and network tests on a mock network (83 cases)
 npm run dev     # builds the page into web/dist and serves it on http://127.0.0.1:8917
 npm run e2e     # chipnet end to end in headless Chrome (needs Chrome and the test wallet's chipnet coins)
 ```
