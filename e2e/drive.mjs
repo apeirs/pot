@@ -88,11 +88,11 @@ try {
   const stamp = new Date().toISOString().slice(0, 16);
   const A = await create(`e2e pot A ${stamp}`, '0.0002');
   check('pot A funded with its title on chain', A.sats === '20000' && A.title === `e2e pot A ${stamp}`, JSON.stringify(A));
-  result.txs.createA = A.fundTxid;
+  result.txs.createA = A.fundTxid; result.links = { A: A.link };
   const tip = (await S()).height;
   const B = await create(`e2e pot B ${stamp}`, '0.0001', tip);
   check('pot B funded', B.sats === '10000', JSON.stringify(B));
-  result.txs.createB = B.fundTxid;
+  result.txs.createB = B.fundTxid; result.links.B = B.link;
   s = await S();
   check('pot B refund is open', /Deadline passed/.test(await page.textContent('#pot-deadline')) && !(await page.isDisabled('#refund-send')));
 
