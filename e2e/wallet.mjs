@@ -27,7 +27,7 @@ if (isMain) {
   const TIMEOUT_MS = Number(process.env.WALLET_TIMEOUT_MS || 900000);
   const outDir = new URL('./out/', import.meta.url);
   mkdirSync(outDir, { recursive: true });
-  const LOG = new URL('wallet.jsonl', outDir);
+  const LOG = new URL('wallet-log.jsonl', outDir);
   const log = (o) => { console.log('[wallet]', JSON.stringify(o)); appendFileSync(LOG, JSON.stringify({ t: new Date().toISOString(), ...o }) + '\n'); };
 
   const nameToChild = { receive: 0, change: 1 };
