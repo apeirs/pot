@@ -4,7 +4,7 @@ import { secp256k1, hash160, encodeCashAddress, generatePrivateKey } from '@bita
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-const artifact = JSON.parse(readFileSync(new URL('./Pot.json', import.meta.url)));
+const artifact = JSON.parse(readFileSync(new URL('../contracts/Pot.json', import.meta.url)));
 const key = () => {
   const priv = generatePrivateKey(() => Uint8Array.from(randomBytes(32)));
   const pub = secp256k1.derivePublicKeyCompressed(priv);

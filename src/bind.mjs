@@ -44,7 +44,7 @@ const revoke = finalizeEvent({ kind: 30078, created_at: T + 600, content: 'revok
 const rr = resolve([V[0].event, revoke], addrA); console.log(rr.ok === false && rr.reason === 'revoked' ? 'ok  ' : 'FAIL', 'revocation overrides an older binding ->', rr.reason);
 V.push({ name: 'revocation overrides an older binding', expect: false, result: rr, events: [V[0].event, revoke] });
 const r2 = resolve([V[0].event], addrA); console.log(r2.ok ? 'ok  ' : 'FAIL', 'resolve without revocation ->', r2.ok ? `npub ${r2.npub.slice(0, 12)}… → ${r2.addr}` : r2.reason);
-writeFileSync(new URL('./bind-vectors.json', import.meta.url), JSON.stringify({ spec: 'nostr-bch-bind v1', note: 'throwaway keys derived from sha256("nostr-bch-bind test key: <label>"); never fund', vectors: V }, null, 1));
+writeFileSync(new URL('../test/bind-vectors.json', import.meta.url), JSON.stringify({ spec: 'nostr-bch-bind v1', note: 'throwaway keys derived from sha256("nostr-bch-bind test key: <label>"); never fund', vectors: V }, null, 1));
 const bad = V.filter(v => (v.result.ok === true) !== v.expect).length + (rr.ok ? 1 : 0) + (r2.ok ? 0 : 1);
 console.log(`\n${V.length} vectors, ${bad} failed`); process.exit(bad ? 1 : 0);
 }

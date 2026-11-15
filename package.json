@@ -1,0 +1,29 @@
+{
+  "name": "pot",
+  "version": "0.1.0",
+  "description": "Pot: bounties you can trust, on Bitcoin Cash. A CashScript escrow with a judge key, top-ups and a deadline refund; static page, WizardConnect.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:contract": "cashc contracts/Pot.cash -o contracts/Pot.json",
+    "test": "node test/pot-test.mjs && node test/mock-test.mjs && node test/sweep-test.mjs && node test/bind-vectors-test.mjs"
+  },
+  "dependencies": {
+    "@bitauth/libauth": "3.1.0-next.8",
+    "@electrum-cash/network": "4.4.8",
+    "@wizardconnect/core": "0.2.10",
+    "@wizardconnect/dapp": "0.2.6",
+    "cashscript": "0.14.0",
+    "nostr-tools": "2.25.5",
+    "qrcode-generator": "2.0.4"
+  },
+  "devDependencies": {
+    "@wizardconnect/wallet": "0.2.4",
+    "cashc": "0.14.0",
+    "esbuild": "0.28.2",
+    "jsqr": "1.4.0",
+    "playwright-core": "1.56.1",
+    "pngjs": "7.0.0"
+  }
+}

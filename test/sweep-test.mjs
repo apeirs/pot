@@ -1,6 +1,6 @@
 // Unit tests for planSweep (sweep.mjs), plus an integration check against the real Pot contract on the mock network:
 // the planned sweep must pass the contract's fee cap, and sweeping everything must fail it.
-import { planSweep, leftNote, DUST } from './sweep.mjs';
+import { planSweep, leftNote, DUST } from '../src/sweep.mjs';
 import { Contract, MockNetworkProvider, SignatureTemplate, TransactionBuilder, randomUtxo, placeholderSignature, placeholderPublicKey } from 'cashscript';
 import { secp256k1, hash160, encodeCashAddress, generatePrivateKey, encodeTransaction } from '@bitauth/libauth';
 import { randomBytes } from 'node:crypto';
@@ -86,7 +86,7 @@ await t('large pot (300 top-ups): binary search keeps the biggest that fit', () 
 });
 
 // ---------- integration with the real contract (mock network, real Schnorr sigs, sizes from placeholder builds)
-const artifact = JSON.parse(readFileSync(new URL('./Pot.json', import.meta.url)));
+const artifact = JSON.parse(readFileSync(new URL('../contracts/Pot.json', import.meta.url)));
 const key = () => { const priv = generatePrivateKey(() => Uint8Array.from(randomBytes(32))); const pub = secp256k1.derivePublicKeyCompressed(priv);
   return { pub, pkh: hash160(pub), sig: new SignatureTemplate(priv), addr: encodeCashAddress({ prefix: 'bchtest', type: 'p2pkh', payload: hash160(pub) }).address }; };
 const poster = key(), judge = key(), winner = key();
