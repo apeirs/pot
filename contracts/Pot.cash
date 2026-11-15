@@ -5,8 +5,11 @@ pragma cashscript ^0.14.0;
 //   to one output, minus a capped fee. The output may not be the poster's or the judge's own P2PKH.
 // - refund: from the deadline block on, the poster takes the whole pot back, to their own P2PKH only.
 // Top-ups need no function: anyone pays the contract address.
-contract Pot(bytes20 posterPkh, pubkey judgePk, int deadline, int maxFee) {
+// salt: 8 random bytes per pot, so two pots with the same poster, judge, deadline and fee cap get different
+// addresses (without it they would share one address and one award would sweep both).
+contract Pot(bytes20 posterPkh, pubkey judgePk, int deadline, int maxFee, bytes8 salt) {
     function award(sig judgeSig) {
+        require(salt.length == 8);
         require(checkSig(judgeSig, judgePk));
         require(tx.outputs.length == 1);
         require(tx.outputs[0].lockingBytecode != new LockingBytecodeP2PKH(posterPkh));
@@ -22,6 +25,7 @@ contract Pot(bytes20 posterPkh, pubkey judgePk, int deadline, int maxFee) {
     }
 
     function refund(pubkey posterPk, sig posterSig) {
+        require(salt.length == 8);
         require(hash160(posterPk) == posterPkh);
         require(checkSig(posterSig, posterPk));
         require(tx.time >= deadline);

@@ -12,7 +12,9 @@ const key = () => {
   return { priv, pub, pkh, sig: new SignatureTemplate(priv), addr: encodeCashAddress({ prefix: 'bchtest', type: 'p2pkh', payload: pkh }).address };
 };
 const poster = key(), judge = key(), winner = key(), stranger = key();
-const DEADLINE = 1000n, MAXFEE = 2000n;
+const DEADLINE = 1000n, MAXFEE = 5000n; // the app's fee cap
+const salt = () => Uint8Array.from(randomBytes(8));
+const SALT = salt();
 
 let pass = 0, fail = 0;
 async function expect(name, shouldWork, fn) {
@@ -24,7 +26,7 @@ async function expect(name, shouldWork, fn) {
 // A pot with the given UTXO values (first = the funding, the rest = top-ups). Returns provider, contract, its utxos.
 async function pot(values, judgePk = judge.pub) {
   const provider = new MockNetworkProvider();
-  const c = new Contract(artifact, [poster.pkh, judgePk, DEADLINE, MAXFEE], { provider, addressType: 'p2sh32' });
+  const c = new Contract(artifact, [poster.pkh, judgePk, DEADLINE, MAXFEE, SALT], { provider, addressType: 'p2sh32' });
   for (const v of values) provider.addUtxo(c.address, randomUtxo({ satoshis: v }));
   return { provider, c, utxos: await provider.getUtxos(c.address) };
 }
@@ -50,14 +52,14 @@ await expect('award signed by the poster (not the judge)', false, async () => { 
 await expect('award signed by a stranger', false, async () => { const p = await pot([100000n]); return award(p, stranger, winner.addr, 99000n); });
 await expect('award to the poster', false, async () => { const p = await pot([100000n]); return award(p, judge, poster.addr, 99000n); });
 await expect('award to the judge', false, async () => { const p = await pot([100000n]); return award(p, judge, judge.addr, 99000n); });
-await expect('award skimming above the fee cap', false, async () => { const p = await pot([100000n]); return award(p, judge, winner.addr, 95000n); });
-await expect('sweep of 3 UTXOs paying out only 2 of them (skim the top-up)', false, async () => { const p = await pot([100000n, 30000n, 5000n]); return award(p, judge, winner.addr, 130000n); });
+await expect('award skimming above the fee cap', false, async () => { const p = await pot([100000n]); return award(p, judge, winner.addr, 94999n); });
+await expect('sweep of 3 UTXOs paying out only 2 of them (skim the top-up)', false, async () => { const p = await pot([100000n, 30000n, 5000n]); return award(p, judge, winner.addr, 129999n); });
 await expect('award with a second output (change to the judge)', false, async () => { const p = await pot([100000n]); return award(p, judge, winner.addr, 50000n, (tb) => tb.addOutput({ to: judge.addr, amount: 49000n })); });
 await expect('award mixing in a foreign P2PKH input', false, async () => {
   const p = await pot([100000n]); const s = randomUtxo({ satoshis: 50000n }); p.provider.addUtxo(stranger.addr, s); const [su] = await p.provider.getUtxos(stranger.addr);
   return award(p, judge, winner.addr, 149000n, (tb) => tb.addInput(su, stranger.sig.unlockP2PKH())); });
 await expect('award mixing inputs of two different pots (same judge)', false, async () => {
-  const a = await pot([100000n]); const b = new Contract(artifact, [stranger.pkh, judge.pub, DEADLINE, MAXFEE], { provider: a.provider, addressType: 'p2sh32' });
+  const a = await pot([100000n]); const b = new Contract(artifact, [stranger.pkh, judge.pub, DEADLINE, MAXFEE, SALT], { provider: a.provider, addressType: 'p2sh32' });
   a.provider.addUtxo(b.address, randomUtxo({ satoshis: 40000n })); const [bu] = await a.provider.getUtxos(b.address);
   return award(a, judge, winner.addr, 139000n, (tb) => tb.addInput(bu, b.unlock.award(judge.sig))); });
 // --- refund
@@ -67,5 +69,16 @@ await expect('refund after the deadline to someone else', false, async () => { c
 await expect('refund by the judge after the deadline', false, async () => { const p = await pot([100000n]); return refund(p, judge, poster.addr, 99000n, 1000); });
 await expect('refund skimming above the fee cap', false, async () => { const p = await pot([100000n, 20000n]); return refund(p, poster, poster.addr, 100000n, 1000); });
 await expect('judge can still award after the deadline', true, async () => { const p = await pot([100000n]); return award(p, judge, winner.addr, 99000n); });
+// --- salt: same terms must not mean the same pot
+await expect('same terms, different salt: different addresses', true, async () => {
+  const a = new Contract(artifact, [poster.pkh, judge.pub, DEADLINE, MAXFEE, salt()], { provider: new MockNetworkProvider(), addressType: 'p2sh32' });
+  const b = new Contract(artifact, [poster.pkh, judge.pub, DEADLINE, MAXFEE, salt()], { provider: new MockNetworkProvider(), addressType: 'p2sh32' });
+  if (a.address === b.address) throw new Error('same address'); });
+await expect('award mixing inputs of two pots with the same terms but different salts', false, async () => {
+  const a = await pot([100000n]); const b = new Contract(artifact, [poster.pkh, judge.pub, DEADLINE, MAXFEE, salt()], { provider: a.provider, addressType: 'p2sh32' });
+  a.provider.addUtxo(b.address, randomUtxo({ satoshis: 40000n })); const [bu] = await a.provider.getUtxos(b.address);
+  return award(a, judge, winner.addr, 139000n, (tb) => tb.addInput(bu, b.unlock.award(judge.sig))); });
+await expect('a salt that is not 8 bytes is refused', false, async () => {
+  return new Contract(artifact, [poster.pkh, judge.pub, DEADLINE, MAXFEE, Uint8Array.from(randomBytes(7))], { provider: new MockNetworkProvider(), addressType: 'p2sh32' }); });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -90,10 +90,10 @@ const artifact = JSON.parse(readFileSync(new URL('../contracts/Pot.json', import
 const key = () => { const priv = generatePrivateKey(() => Uint8Array.from(randomBytes(32))); const pub = secp256k1.derivePublicKeyCompressed(priv);
   return { pub, pkh: hash160(pub), sig: new SignatureTemplate(priv), addr: encodeCashAddress({ prefix: 'bchtest', type: 'p2pkh', payload: hash160(pub) }).address }; };
 const poster = key(), judge = key(), winner = key();
-const DEADLINE = 1000;
+const DEADLINE = 1000, MAXFEE = 5000n; // the app's fee cap
 const setup = async (vals) => {
   const provider = new MockNetworkProvider();
-  const c = new Contract(artifact, [poster.pkh, judge.pub, BigInt(DEADLINE), 2000n], { provider, addressType: 'p2sh32' });
+  const c = new Contract(artifact, [poster.pkh, judge.pub, BigInt(DEADLINE), MAXFEE, Uint8Array.from(randomBytes(8))], { provider, addressType: 'p2sh32' });
   for (const v of vals) provider.addUtxo(c.address, randomUtxo({ satoshis: BigInt(v) }));
   return { provider, c, utxos: await provider.getUtxos(c.address) };
 };
@@ -108,31 +108,31 @@ const tx = ({ provider, c }, kind, ins, amount, real) => {
 const sizeOf = (env, kind) => (ins) => encodeTransaction(tx(env, kind, ins, 1000n, false).buildLibauthTransaction(true)).length; // as web/app.js
 
 for (const kind of ['award', 'refund']) {
-  const vals = [20000, 1000, 950, 900, 850, 800, 750, 700, 650];
-  await t(`${kind}: 9 UTXOs on the real contract -> plan passes, sweep-all fails the fee cap`, async () => {
+  const vals = [20000, ...Array.from({ length: 19 }, (_, i) => 1000 - 20 * i)]; // 20 UTXOs: more than one sweep can take
+  await t(`${kind}: 20 UTXOs on the real contract -> plan passes, sweep-all fails the fee cap`, async () => {
     const env = await setup(vals);
-    const p = planSweep(env.utxos, { maxFee: 2000n, bytesFn: sizeOf(env, kind) });
+    const p = planSweep(env.utxos, { maxFee: MAXFEE, bytesFn: sizeOf(env, kind) });
     if (!p.left.length) throw new Error('expected some left out, got all ' + p.inputs.length);
     const sent = await tx(env, kind, p.inputs, p.amount, true).send();
     eq(sent.hex.length / 2, p.bytes, 'signed size = placeholder size');
     const all = sizeOf(env, kind)(env.utxos), total = env.utxos.reduce((s, u) => s + u.satoshis, 0n);
     let rejected = false;
-    try { await tx(env, kind, env.utxos, total - BigInt(all), true).send(); } catch (e) { rejected = /line (21|37)/.test(e.message) || /maxFee|total - maxFee/.test(e.message); }
+    try { await tx(env, kind, env.utxos, total - BigInt(all), true).send(); } catch (e) { rejected = /Pot\.cash:(24|41)\b/.test(e.message) || /maxFee|total - maxFee/.test(e.message); }
     if (!rejected) throw new Error('sweep-all at 1 sat/byte was not rejected by the fee cap');
     console.log(`      ${kind}: swept ${p.inputs.length}, left ${p.left.length}, ${p.bytes} bytes, fee ${p.fee}; all ${env.utxos.length} would be ${all} bytes`);
   });
   await t(`${kind}: a lone 700-sat UTXO -> readable dust error, not a cashscript fee error`, async () => {
     const env = await setup([700]);
-    throws(() => planSweep(env.utxos, { maxFee: 2000n, bytesFn: sizeOf(env, kind) }), /below the 546 sat minimum/);
+    throws(() => planSweep(env.utxos, { maxFee: MAXFEE, bytesFn: sizeOf(env, kind) }), /below the 546 sat minimum/);
   });
   await t(`${kind}: a lone 1200-sat UTXO -> swept, accepted`, async () => {
     const env = await setup([1200]);
-    const p = planSweep(env.utxos, { maxFee: 2000n, bytesFn: sizeOf(env, kind) });
+    const p = planSweep(env.utxos, { maxFee: MAXFEE, bytesFn: sizeOf(env, kind) });
     await tx(env, kind, p.inputs, p.amount, true).send();
   });
   await t(`${kind}: 3 UTXOs on the real contract -> all taken and accepted`, async () => {
     const env = await setup([20000, 5000, 1000]);
-    const p = planSweep(env.utxos, { maxFee: 2000n, bytesFn: sizeOf(env, kind) });
+    const p = planSweep(env.utxos, { maxFee: MAXFEE, bytesFn: sizeOf(env, kind) });
     eq(p.inputs.length, 3); await tx(env, kind, p.inputs, p.amount, true).send();
   });
 }
