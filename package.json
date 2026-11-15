@@ -8,7 +8,7 @@
   "scripts": {
     "build:contract": "cashc contracts/Pot.cash -o contracts/Pot.json",
     "build:web": "node web/build.mjs",
-    "test": "node test/pot-test.mjs && node test/mock-test.mjs && node test/sweep-test.mjs && node test/bind-vectors-test.mjs && node test/app-test.mjs && node test/net-test.mjs",
+    "test": "node test/pot-test.mjs && node test/mock-test.mjs && node test/sweep-test.mjs && node test/bind-vectors-test.mjs && node test/identity-test.mjs && node test/app-test.mjs && node test/net-test.mjs",
     "e2e": "node e2e/drive.mjs",
     "dev": "node web/build.mjs && python3 -m http.server 8917 --bind 127.0.0.1 --directory web/dist"
   },

@@ -1,0 +1,64 @@
+{
+ "note": "one event per rival format, made with the throwaway test keys of bind-vectors.json; never fund",
+ "vectors": [
+  {
+   "name": "pennyops bch-nostr-bind.v1 (signmessage in the i tag)",
+   "expect": true,
+   "event": {
+    "kind": 30078,
+    "created_at": 1794000000,
+    "content": "bch-nostr-bind.v1:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen:1794000000",
+    "tags": [
+     [
+      "d",
+      "bch-nostr-bind"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen",
+      "H8mFy9IMan5OgISgzxIBj6AJRdTnA4LsF2oJjFYtizENO0k0AqW6qEShuCNYwXFNXPUZrS0HZXnlpR8cEGzm4vU="
+     ],
+     [
+      "statement",
+      "bch-nostr-bind.v1:3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen:1794000000"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "ffcf5a4e54ea8b95b6da84b07fbbe0602af95feb3bf773cb337d2bc3f6ab3085",
+    "sig": "deb01fa4cb4a2d92f1e858164edf2dd6c6bc80a18cd0250ea4e0a5ed5d030ce5266ab683ef20ccdf382cda8b6323b64d583d4f327e240032db593d68ebe88bf2"
+   }
+  },
+  {
+   "name": "bch-identity-bridge 1.0.0 (kind 31234, BCH signature kept off-relay)",
+   "expect": false,
+   "event": {
+    "kind": 31234,
+    "created_at": 1794000000,
+    "content": "{\"bch\":{\"address\":\"bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen\",\"network\":\"mainnet\"},\"bindingId\":\"0a37eee19b8cc677939dd9a28aa3987da2b5d4f17220f9eaf2e8df9b6c9874a6\",\"createdAt\":1794000000,\"nonce\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"protocol\":\"bch-identity-bridge\",\"purpose\":\"identity-binding-v1\",\"version\":\"1.0.0\"}",
+    "tags": [
+     [
+      "d",
+      "0a37eee19b8cc677939dd9a28aa3987da2b5d4f17220f9eaf2e8df9b6c9874a6"
+     ],
+     [
+      "bch",
+      "bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen",
+      "mainnet"
+     ],
+     [
+      "protocol",
+      "bch-identity-bridge",
+      "1.0.0"
+     ],
+     [
+      "nonce",
+      "0000000000000000000000000000000000000000000000000000000000000000"
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "ff4e5fe59e9da789a8ec961477322ac946d1cc06b8fdc85ab45be897a8d94feb",
+    "sig": "896070c175dfb5c27ef701a0fc6dd88b27595e68ddc75c5e03c8108c7df4a9088ac530fc39213bf3a46c882e7280c230ba65d6e507e8ba51ee1194f70d71dc26"
+   }
+  }
+ ]
+}

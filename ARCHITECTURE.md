@@ -38,6 +38,16 @@ still get different addresses.
   signature and key, which have the size of the real ones.
 - `src/potread.mjs`: reads a pot's coins, balance and history from an Electrum server, classifies each transaction
   (fund, top-up, award, refund) and reads the POT1 title.
+- `src/bindverify.mjs`, `src/nostrbind.mjs`: Nostr identity bindings (README "Nostr identity"). Verify a binding
+  offline (event signature, BCH `signmessage` or unbroadcastable `wc-tx` proof, matching fields), query relays
+  (`nos.lol`, `relay.primal.net`, `relay.snort.social`; `relay.damus.io` was dropped on 2026-11-15 after Cloudflare 521
+  errors), resolve npub → address and address → npub. Reads our `bch-bind:*` events and pennyops `bch-nostr-bind`
+  (branch on `d`, since both share the `#i` tag); bch-identity-bridge kind 31234 is listed as unverifiable.
+- `web/bind.js`: the `#/bind` view and the npub badges. The Nostr secret lives only in a closure: never in the DOM or
+  localStorage.
+- Electrum failover (`src/net.mjs`) moves to the next server only on a connection problem. A node's answer ("rejected
+  by network rules", "(code N)", `bad-txns-*`) passes straight through, so the page can show the real reason (for
+  example "not open yet" for a refund before its deadline) instead of "Couldn't reach a BCH server".
 - `web/app.js`: the views (home, create, pot), the wallet panel and the error texts. Pots you create or open are
   remembered in this browser's localStorage, per network.
 
@@ -56,5 +66,5 @@ still get different addresses.
 - `npm test`: the contract's rules (every rejected case names its Pot.cash line), the sweep planner, the app's
   transactions, and the network layer, all on CashScript's mock network.
 - `npm run e2e`: the built page in headless Chrome against chipnet, with a test wallet over a real relay: pairing QR,
-  create, a rejected request, resume after reload, top-up, award (two coins), refund, and the mainnet page refusing a
-  testnet wallet.
+  create, a rejected request, resume after reload, top-up, a wallet-signed identity binding (verified in the page and
+  refused by the network as non-final), award (two coins), refund, and the mainnet page refusing a testnet wallet.

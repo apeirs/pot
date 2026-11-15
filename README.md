@@ -54,6 +54,32 @@ the hunter sees it locked, the poster can't pull it back early, and the rules ar
 
 More in [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Nostr identity (Paytaca DID)
+A poster or judge can bind their BCH address to a Nostr key, so a pot shows who stands behind it and a pot can be
+judged by, or awarded to, an npub instead of a raw address.
+
+- **Bind** ([`#/bind`](https://apeir.dk/online/pot/#/bind)): connect Paytaca over WizardConnect (the same session as the
+  pot), pick a Nostr key (a NIP-07 extension if you have one, else a fresh key made in the page or a pasted nsec; the
+  secret never leaves the page and is never stored), then sign one short message with both keys. The BCH side is
+  either a wallet `signmessage` signature (pasted) or a WizardConnect-signed transaction that commits to the message
+  and can never be mined (locktime 4102444800, non-final). The page checks both signatures offline, then publishes the
+  event to `nos.lol`, `relay.primal.net` and `relay.snort.social`.
+- **On a pot page** the poster's and judge's addresses get a verified npub badge when a valid binding exists.
+- **Pay by identity**: the create form's judge field and the award form's winner field accept an npub. The page finds
+  the npub's binding on the relays, verifies both signatures, and uses the bound address (or its key, for a judge). It
+  re-resolves at award time and puts the npub in the wallet prompt.
+- **Format** `nostr-bch-bind v1`: a kind 30078 event, `d` = `bch-bind:<address>`, tags `i` = `bch:<address>` and
+  `proof` = [`signmessage` | `wc-tx`, value]; content `nostr-bch-bind:v1 / npub:<hex> / bch:<address> / created:<ts>`.
+  A binding is valid when the Nostr event signature, the BCH proof over the same message, and the address/key fields
+  all agree. Logic in `src/bindverify.mjs` and `src/nostrbind.mjs`, page in `web/bind.js`.
+- **Live binding**: the BLAZE demo wallet `bitcoincash:qzjta36gk6ycrmlcnaln07z4yda305lepy7tp7cnvp` (judge of pot C) is bound to
+  `npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns` with a Paytaca `signmessage` signature, event
+  `adf8a87d…fa1c100f` (also `test/mainnet-binding.json`, checked by `npm test`).
+
+**Compatible with:** pennyops `bch-nostr-bind.v1` (kind 30078, `d` = `bch-nostr-bind`, written for Cashonize #405, the
+prior art for paying an npub) is read and fully verified, signature from its `i` tag. alberdioni `bch-identity-bridge`
+(kind 31234) carries no BCH proof on the relay, so it is shown greyed out as unverifiable, never as verified.
+
 ## Wallets
 | Wallet | Network | Create | Top-up | Award (contract input) | Refund (contract input) |
 |---|---|---|---|---|---|
@@ -94,7 +120,7 @@ Each rule of the contract, the attack it stops, and the test that tries it (`npm
 ## Run it
 ```
 npm ci
-npm test        # contract, sweep, app and network tests on a mock network (83 cases)
+npm test        # contract, sweep, app and network tests on a mock network (103 cases)
 npm run dev     # builds the page into web/dist and serves it on http://127.0.0.1:8917
 npm run e2e     # chipnet end to end in headless Chrome (needs Chrome and the test wallet's chipnet coins)
 ```

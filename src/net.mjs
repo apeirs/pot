@@ -65,6 +65,10 @@ export const normalizeAddress = (address, net) => {
 };
 
 const CONNECTION_ERROR = /timeout|timed out|connect|connection|closed|socket|ECONN|ENOTFOUND|network|lost|unreachable/i;
+// A node's answer, never a connection problem: Fulcrum words every rejection "...rejected by network rules ... (code N)",
+// which the word "network" above would otherwise send round every server and turn into SERVER_ERROR.
+const NODE_ANSWER = /rejected by network rules|\(code -?\d+\)|bad-txns|non-final|mandatory-script|missing ?inputs|txn-/i;
+const isConnectionError = (e) => { const m = String(e?.message ?? e); return CONNECTION_ERROR.test(m) && !NODE_ANSWER.test(m); };
 
 /**
  * A cashscript NetworkProvider that tries the network's servers in order. A connection problem moves it to the next
@@ -93,7 +97,7 @@ export class FailoverProvider {
         ]);
       } catch (e) {
         lastError = e;
-        if (!CONNECTION_ERROR.test(String(e?.message ?? e))) throw e;
+        if (!isConnectionError(e)) throw e;
         this.index = (this.index + 1) % this.providers.length;
       } finally {
         clearTimeout(timer);

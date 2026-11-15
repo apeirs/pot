@@ -5,7 +5,7 @@ import {
   Contract, TransactionBuilder, placeholderP2PKHUnlocker, placeholderSignature, placeholderPublicKey,
 } from 'cashscript';
 import { sourceOutputToRelay } from '@wizardconnect/core/hdwalletv1-serialize';
-import { binToHex, hexToBin, hash160, encodeCashAddress, encodeTransaction } from '@bitauth/libauth';
+import { binToHex, hexToBin, hash160, encodeCashAddress, encodeTransaction, sha256, utf8ToBin } from '@bitauth/libauth';
 import artifact from '../contracts/Pot.json' with { type: 'json' };
 import { planSweep, leftNote, DUST } from './sweep.mjs';
 
@@ -156,6 +156,34 @@ export function buildSweep({ provider, params, kind, utxos, to, locktime = 0, si
     .generateWcTransactionObject({ broadcast: false, userPrompt: prompt });
   const inputPaths = plan.inputs.map((_, i) => [i, signPath[0], signPath[1]]);
   return { wcObj, inputPaths, plan, note: leftNote(plan) };
+}
+
+// ---------- identity: the wc-tx binding proof (BIND-SPEC.md, proof 2b), for wallets that only sign transactions
+export const BIND_PROTO = 'nostr-bch-bind:v1';
+export const BIND_LOCKTIME = 4102444800; // 2100-01-01: the proof tx can never be mined
+export const BIND_FEE = 300n;
+/**
+ * A transaction that is never sent: one coin of the bound address back to the same address minus 300 sats, plus an
+ * OP_RETURN "nostr-bch-bind:v1" <sha256(message)>, locktime 2100 with a non-final sequence. The wallet's signature on
+ * it proves the address's key signed the binding message. A published proof can't be mined, and even if it were, the
+ * coin would come back to the same address.
+ * @param coin { utxo, address, path: [name, index] } one coin of the address being bound, without tokens
+ */
+export function buildBindProof({ provider, coin, message, userPrompt }) {
+  if (coin.utxo.token) throw new Error('A token coin can not carry the proof.');
+  if (coin.utxo.satoshis < BIND_FEE + DUST) throw new Error(`The proof needs a coin of at least ${BIND_FEE + DUST} sats on this address.`);
+  const tb = new TransactionBuilder({ provider })
+    .addInput(coin.utxo, placeholderP2PKHUnlocker(coin.address))
+    .addOpReturnOutput([BIND_PROTO, '0x' + binToHex(sha256.hash(utf8ToBin(message)))])
+    .addOutput({ to: coin.address, amount: coin.utxo.satoshis - BIND_FEE })
+    .setLocktime(BIND_LOCKTIME);
+  const wcObj = tb.generateWcTransactionObject({ broadcast: false, userPrompt });
+  const lockingBytecode = binToHex(wcObj.sourceOutputs[0].lockingBytecode);
+  return {
+    wcObj, inputPaths: [[0, coin.path[0], coin.path[1]]],
+    /** the signed tx hex -> the `proof` tag value */
+    proof: (signedHex) => JSON.stringify({ tx: signedHex, source: { valueSatoshis: String(coin.utxo.satoshis), lockingBytecode } }),
+  };
 }
 
 /** BIP21 payment URI for a top-up from any wallet. */

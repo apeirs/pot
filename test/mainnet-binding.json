@@ -1,0 +1,30 @@
+{
+ "note": "The real binding of the Pot demo poster/judge address (receive/0 of the apeir-blaze Paytaca wallet), signed by the Paytaca browser extension 0.27.5 Sign Message, published 2026-11-15.",
+ "event": {
+  "kind": 30078,
+  "created_at": 1794733923,
+  "content": "nostr-bch-bind:v1\nnpub:6ba27ff2a0e26503d17adeaee459eca3b270f1df20b2d292511ca5d66a169326\nbch:bitcoincash:qzjta36gk6ycrmlcnaln07z4yda305lepy7tp7cnvp\ncreated:1794733923",
+  "tags": [
+   [
+    "d",
+    "bch-bind:bitcoincash:qzjta36gk6ycrmlcnaln07z4yda305lepy7tp7cnvp"
+   ],
+   [
+    "i",
+    "bch:bitcoincash:qzjta36gk6ycrmlcnaln07z4yda305lepy7tp7cnvp"
+   ],
+   [
+    "proof",
+    "signmessage",
+    "IHxLrtRbqvKKUPHLHvrXHg66eq5olTPftoddasen3detKHGZKrTxqwdlVtgF/s3JabLjR00YQiI2U9naDdphkms="
+   ],
+   [
+    "alt",
+    "BCH address binding (nostr-bch-bind v1)"
+   ]
+  ],
+  "pubkey": "6ba27ff2a0e26503d17adeaee459eca3b270f1df20b2d292511ca5d66a169326",
+  "id": "adf8a87db1ae391c1769c63713ea35055e90f3595d13881339835a86fa1c100f",
+  "sig": "9e0792e26c2b2ae366aad508f97bb2a8f28d700f6e672c5c0996358eb949023d8ccab0505279fb736603f3ac7437ace72bcc1c5494b23b464bfc4e9b4dafcd8a"
+ }
+}

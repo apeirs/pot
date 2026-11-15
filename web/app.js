@@ -1,7 +1,8 @@
 // Pot: the page. A static site with no backend: the pot's terms travel in its link, its state is read from the chain
 // over Electrum, and every transaction is signed by the user's wallet over WizardConnect.
 //
-// Views (by URL hash): #/ home · #/new create · #/p/<pot link> one pot (balance, history, top-up, award, refund).
+// Views (by URL hash): #/ home · #/new create · #/p/<pot link> one pot (balance, history, top-up, award, refund) ·
+// #/bind Nostr identity (web/bind.js).
 // Network: mainnet by default, chipnet with ?net=chipnet. Each network keeps its own wallet session and pot list.
 import { initiateDappRelay } from '@wizardconnect/core';
 import { DappConnectionManager, loadSession, clearSession } from '@wizardconnect/dapp';
@@ -13,6 +14,7 @@ import {
   MAX_FEE, MIN_TOPUP, MIN_POT, newSalt, checkParams, encodePotLink, decodePotLink, potContract, p2pkhAddress,
   pkhAddress, heightForTime, timeForHeight, wcRequest, buildPayment, buildSweep, bip21,
 } from '../src/pot.mjs';
+import { makeIdentity } from './bind.js';
 
 // ---------- network and constants
 const query = new URLSearchParams(location.search);
@@ -107,6 +109,11 @@ const state = (window.__pot = {
 const ui = { title: '', url: '', amount: '0.0002', date: '', height: '', judge: 'me', judgeKey: '', topup: '0.0001', winner: '' };
 const provider = new FailoverProvider(NET);
 let dapp = null, relay = null, readyHandled = false, abort = null, relayTimer = null, resumeTimer = null;
+const id = makeIdentity({
+  $, esc, NET, state, provider, getDapp: () => dapp, walletCoins: () => walletCoins(), setMsg: (...a) => setMsg(...a),
+  setBusy: (...a) => setBusy(...a), action: (fn) => action(fn), copy: (...a) => copy(...a), addrLink: (...a) => addrLink(...a), short,
+  checkAddress, normalizeAddress, setAbort: (a) => { abort = a; },
+});
 
 function fail(e) {
   const m = String(e?.message ?? e);
@@ -329,6 +336,7 @@ function rememberPot(link, extra = {}) {
 function render() {
   const h = location.hash || '#/';
   if (h.startsWith('#/new')) return viewCreate();
+  if (h.startsWith('#/bind')) return id.viewBind();
   if (h.startsWith('#/p/')) return viewPot(decodeURIComponent(h.slice(4)));
   return viewHome();
 }
@@ -346,7 +354,8 @@ function viewHome() {
         <li>Anyone can add to it.</li>
       </ul>
       <p class="muted">No account and no server: the pot's terms are in its link, its money is on chain, and your wallet signs every step.</p>
-      <p><a class="btn" href="#/new">Create a pot</a></p>
+      <p><a class="btn" href="#/new">Create a pot</a> <a class="btn ghost" href="#/bind" id="nav-bind">Nostr identity</a></p>
+      <p class="muted">Pay a winner, or name a judge, by their npub: <a href="#/bind">bind your BCH address to your Nostr key</a>.</p>
     </section>
     ${featured.length ? `<section><h2>Featured</h2>${featured.map(potRow).join('')}</section>` : ''}
     <section>
@@ -401,7 +410,8 @@ function viewCreate() {
           <div class="muted">Hunters can trust that the pot stays locked until the deadline, but you decide the winner.</div>
           <label class="radio"><input type="radio" name="judge" value="other" ${ui.judge === 'other' ? 'checked' : ''}> Someone else</label>
           <div class="muted">You can't take the pot back before the deadline, and you can't award it.</div>
-          <input id="f-judge" class="mono" placeholder="Judge key (66 hex characters, from 'Your judge key' in their Pot wallet panel)" value="${esc(ui.judgeKey)}" ${ui.judge === 'me' ? 'hidden' : ''}>
+          <input id="f-judge" class="mono" placeholder="Their npub, or their judge key (66 hex, from 'Your judge key' in their Pot wallet panel)" value="${esc(ui.judgeKey)}" ${ui.judge === 'me' ? 'hidden' : ''}>
+          <div class="hint" id="f-judge-hint" ${ui.judge === 'me' ? 'hidden' : ''}></div>
         </fieldset>
         <p class="muted">Network fee cap per award or refund: ${satsText(MAX_FEE)}. Each pot gets a fresh random salt, so two pots never share an address.</p>
         <button data-act="create" id="create">Create and fund</button>
@@ -410,7 +420,7 @@ function viewCreate() {
     </section>`;
   const bind = (id, key) => { $(id).oninput = () => { ui[key] = $(id).value; hints(); }; };
   bind('f-title', 'title'); bind('f-url', 'url'); bind('f-amount', 'amount'); bind('f-date', 'date'); bind('f-height', 'height'); bind('f-judge', 'judgeKey');
-  document.querySelectorAll('input[name=judge]').forEach((r) => { r.onchange = () => { ui.judge = r.value; $('f-judge').hidden = ui.judge === 'me'; }; });
+  document.querySelectorAll('input[name=judge]').forEach((r) => { r.onchange = () => { ui.judge = r.value; $('f-judge').hidden = $('f-judge-hint').hidden = ui.judge === 'me'; }; });
   $('createform').onsubmit = (ev) => { ev.preventDefault(); createPot(); };
   const hints = () => {
     const sats = parseBch(ui.amount);
@@ -418,7 +428,18 @@ function viewCreate() {
     const tip = state.height;
     if (!tip) { $('f-deadline-hint').textContent = 'Reading the block height…'; return; }
     const h = deadlineHeight(tip);
+    judgeHint();
     $('f-deadline-hint').textContent = h ? `≈ ${dateText(timeForHeight(h, tip))} (block ${h.toLocaleString('en')}). Blocks come about every 10 minutes, so the date is approximate.` : 'Pick a date in the future.';
+  };
+  const judgeHint = () => {
+    const el = $('f-judge-hint'), v = ui.judgeKey.trim();
+    if (!el) return;
+    if (!id.looksLikeNpub(v)) { el.textContent = ''; return; }
+    const r = id.resolveCached(v, () => { if (state.view === 'create') judgeHint(); });
+    el.innerHTML = r.pending ? '<span class="spinner"></span> Looking up this npub’s BCH binding…'
+      : r.error ? `<span class="err">${esc(r.error)}</span>`
+        : r.pub ? `<span class="ok">✓ ${esc(id.shortNpub(r.hex))}</span> is bound to ${esc(short(r.best.addr.split(':')[1], 12))}: judge key ${esc(short(r.pub, 10))}`
+          : '<span class="err">This binding has no key that can judge (it was signed with an uncompressed key). Ask for their judge key instead.</span>';
   };
   hints();
   $('create-note').textContent = state.connected ? '' : 'Connect a wallet first (top right).';
@@ -445,7 +466,12 @@ const createPot = action(async () => {
   if (!deadline) throw new Error('Pick a deadline in the future.');
   if (deadline < tip || (NET.name === 'mainnet' && deadline <= tip)) throw new Error(`The deadline block must be after the current block (${tip}).`);
   let judgePk = state.judgeKey;
-  if (ui.judge === 'other') {
+  if (ui.judge === 'other' && id.looksLikeNpub(ui.judgeKey)) {
+    setBusy('Looking up the judge’s npub on Nostr…');
+    const r = await id.resolveNow(ui.judgeKey.trim());
+    if (!r.pub) throw new Error('This npub’s binding has no key that can judge. Ask for their judge key instead.');
+    judgePk = r.pub;
+  } else if (ui.judge === 'other') {
     judgePk = ui.judgeKey.trim().toLowerCase();
     if (!/^0[23][0-9a-f]{64}$/.test(judgePk)) throw new Error('The judge key must be 66 hex characters starting with 02 or 03.');
   }
@@ -541,8 +567,8 @@ function renderPot() {
         ${!coins && (pot.history ?? []).length ? '<div class="info">This pot is empty or was paid out. Its history is below.</div>' : ''}` : ''}
       <div class="status ${open ? 'open' : ''}" id="pot-deadline">${esc(deadlineLine)}</div>
       <ul class="facts">
-        <li>Only the judge (${isJudge ? '<b>you</b>' : addrLink(judgeAddr, short(judgeAddr.split(':')[1]))}) can award it</li>
-        <li>Refund to the poster (${isPoster ? '<b>you</b>' : addrLink(posterAddr, short(posterAddr.split(':')[1]))}) opens at the deadline</li>
+        <li>Only the judge (${isJudge ? '<b>you</b>' : addrLink(judgeAddr, short(judgeAddr.split(':')[1]))}${id.badgeSlot(judgeAddr)}) can award it</li>
+        <li>Refund to the poster (${isPoster ? '<b>you</b>' : addrLink(posterAddr, short(posterAddr.split(':')[1]))}${id.badgeSlot(posterAddr)}) opens at the deadline</li>
         <li>Anyone can add to it</li>
       </ul>
       <div class="row"><input class="mono" readonly id="pot-link" value="${esc(potUrl(pot.link))}" aria-label="Pot link"><button id="copy-link">Copy link</button></div>
@@ -564,7 +590,7 @@ function renderPot() {
     <section id="award">
       <h3>Award</h3>
       ${isJudge ? `
-        <label>Winner's BCH address <input id="w-addr" class="mono" value="${esc(ui.winner)}" placeholder="${NET.prefix}:q…"></label>
+        <label>Winner's BCH address or npub <input id="w-addr" class="mono" value="${esc(ui.winner)}" placeholder="${NET.prefix}:q… or npub1…"></label>
         <div class="hint" id="w-hint"></div>
         <button data-act="award" id="award-send" ${coins ? '' : 'data-off="1"'}>Award the pot</button>`
       : `<p class="muted">${state.connected ? esc(TEXT.notJudge) : 'The judge connects their wallet here to pay the winner.'}</p>`}
@@ -616,18 +642,34 @@ function renderPot() {
   setBusy(state.busyText);
 
   function winnerHint() {
-    const err = winnerError(ui.winner);
+    const w = winnerTarget(ui.winner), err = w.pending ? '' : winnerError(ui.winner);
     $('w-hint').innerHTML = !ui.winner.trim() ? `Pays all ${coins} coin${coins === 1 ? '' : 's'} (up to 15 per award), minus a network fee of at most ${satsText(params.maxFee)}.`
-      : err ? `<span class="err">${esc(err)}</span>` : `Pays the pot to ${esc(short(normalizeAddress(ui.winner, NET), 14))}, minus a network fee of at most ${satsText(params.maxFee)}. The wallet shows the exact amount.`;
+      : w.pending ? '<span class="spinner"></span> Looking up this npub’s BCH binding on Nostr…'
+        : err ? `<span class="err">${esc(err)}</span>`
+          : `Pays the pot to ${esc(short(w.addr, 14))}${w.npub ? ` (<span class="ok">✓ verified binding of ${esc(id.shortNpub(w.npub))}</span>)` : ''}, minus a network fee of at most ${satsText(params.maxFee)}. The wallet shows the exact amount.`;
   }
 }
 
+/** The winner field (address or npub) → { addr, npub? } | { error } | { pending } (npub lookups are cached for the visit). */
+function winnerTarget(text) {
+  if (!id.looksLikeNpub(text)) {
+    const error = checkAddress(text, NET);
+    return error ? { error } : { addr: normalizeAddress(text, NET) };
+  }
+  const r = id.resolveCached(text.trim(), () => $('w-addr')?.dispatchEvent(new Event('input')));
+  if (r.pending) return { pending: true };
+  return r.error ? { error: r.error } : { addr: r.best.addr, npub: r.hex };
+}
+
+function partyError(a) {
+  const p = state.pot.params;
+  return sameLock(a, pkhAddress(p.posterPkh, NET.prefix)) || sameLock(a, p2pkhAddress(hexToBin(p.judgePk), NET.prefix)) ? TEXT.winnerIsParty : '';
+}
+
 function winnerError(text) {
-  const err = checkAddress(text, NET);
-  if (err) return err;
-  const a = normalizeAddress(text, NET), p = state.pot.params;
-  if (sameLock(a, pkhAddress(p.posterPkh, NET.prefix)) || sameLock(a, p2pkhAddress(hexToBin(p.judgePk), NET.prefix))) return TEXT.winnerIsParty;
-  return '';
+  const w = winnerTarget(text);
+  if (w.pending) return 'Still looking up this npub. Try again in a moment.';
+  return w.error || partyError(w.addr);
 }
 
 async function copy(text, id) {
@@ -652,12 +694,20 @@ const topUp = action(async () => {
 
 async function sweep(kind) {
   const pot = state.pot, p = pot.params;
-  let to, locktime = 0;
+  let to, locktime = 0, npubNote = '';
   if (kind === 'award') {
     if (state.judgeKey !== p.judgePk) throw new Error(TEXT.notJudge);
-    const err = winnerError(ui.winner);
-    if (err) throw new Error(err);
-    to = normalizeAddress(ui.winner, NET);
+    if (id.looksLikeNpub(ui.winner)) { // look it up again now: a cached binding may have been replaced or revoked
+      setBusy('Looking up the winner’s npub on Nostr…');
+      const r = await id.resolveNow(ui.winner.trim());
+      to = r.best.addr; npubNote = ` (${id.shortNpub(r.hex)})`;
+      const err = partyError(to);
+      if (err) throw new Error(err);
+    } else {
+      const err = winnerError(ui.winner);
+      if (err) throw new Error(err);
+      to = normalizeAddress(ui.winner, NET);
+    }
   } else {
     if (state.pkh !== p.posterPkh) throw new Error(TEXT.notPoster);
     const tip = await provider.getBlockHeight();
@@ -673,7 +723,7 @@ async function sweep(kind) {
   const tx = buildSweep({
     provider, params: p, kind, utxos, to, locktime, signPath: ['receive', 0],
     userPrompt: (plan) => (kind === 'award'
-      ? `Award the pot${named(pot.meta?.title)}: ${bch(plan.amount)} to ${to}`
+      ? `Award the pot${named(pot.meta?.title)}: ${bch(plan.amount)} to ${to}${npubNote}`
       : `Refund the pot${named(pot.meta?.title)}: ${bch(plan.amount)} back to you`),
   });
   const txid = await signAndSend(tx, kind);

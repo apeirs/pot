@@ -43,6 +43,15 @@ await t('failover: a connection error moves to the next server; a node answer do
   try { await fp.sendRawTransaction('00'); } catch (e) { msg = e.message; }
   eq(msg, 'min relay fee not met (code 66)'); eq(calls.join(), '0');
 });
+await t('failover: a Fulcrum rejection ("rejected by network rules") is a node answer, not a connection error', async () => {
+  const fp = new FailoverProvider(NETWORKS.chipnet);
+  const real = 'Transaction is not yet final (nLockTime not satisfied): the transaction was rejected by network rules.\n\nbad-txns-nonfinal, non-final transaction (code 64)';
+  let calls = [];
+  fp.providers = NETWORKS.chipnet.servers.map((_, i) => ({ sendRawTransaction: async () => { calls.push(i); throw new Error(real); } }));
+  let msg = '';
+  try { await fp.sendRawTransaction('00'); } catch (e) { msg = e.message; }
+  eq(msg, real); eq(calls.join(), '0');
+});
 await t('failover: every server down -> the readable server error', async () => {
   const fp = new FailoverProvider(NETWORKS.chipnet, { timeoutMs: 50 });
   fp.providers = [{ getUtxos: () => new Promise(() => {}) }];

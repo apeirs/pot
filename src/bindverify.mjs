@@ -9,6 +9,8 @@ const MAGIC = utf8ToBin('Bitcoin Signed Message:\n');
 const varint = (n) => n < 253 ? [n] : [253, n & 255, n >> 8];
 const sha256d = (b) => sha256.hash(sha256.hash(b));
 const msgHash = (m) => { const b = utf8ToBin(m); return sha256d(Uint8Array.from([...varint(MAGIC.length), ...MAGIC, ...varint(b.length), ...b])); };
+/** sha256d of the Bitcoin-signed-message preimage: what a signmessage signature signs. */
+export const messageHash = msgHash;
 
 export const bindingMessage = (npubHex, addr, created) => `${PROTO}\nnpub:${npubHex}\nbch:${addr}\ncreated:${created}`;
 const parse = (c) => { const L = c.split('\n'); if (L.length !== 4 || L[0] !== PROTO) return null;

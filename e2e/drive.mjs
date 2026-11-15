@@ -2,6 +2,7 @@
 //   build -> chipnet page -> connect (the QR is decoded and must equal the pairing URI) -> wallet joins
 //   -> create pot A (deadline in 3 days) and pot B (deadline = the current block, so its refund is open)
 //   -> a create the wallet rejects (the page must say nothing was sent) -> reload (the session resumes, no QR)
+//   -> #/bind: the wallet signs a binding proof (an unbroadcastable tx) for a key made in the page; it verifies, nothing is sent
 //   -> top up A -> award A to another address (sweeps both coins) -> refund B
 //   -> the mainnet page refuses the same (testnet) wallet.
 // `npm run e2e`. Writes e2e/out/result.json and screenshots. Starts and stops its own static server.
@@ -69,6 +70,21 @@ try {
   check('wallet connected', s.connected && !s.errors.length, s.errors[0]);
   say({ wallet: s.addr, balance: s.balance, height: s.height });
   check('wallet has chipnet coins', BigInt(s.balance) > 100000n, s.balance);
+
+  // --- Nostr identity: a key made in the page, the wallet signs the wc-tx proof; checked in the page, never broadcast, not published
+  await page.goto(`${BASE}?net=chipnet#/bind`);
+  await until(() => window.__pot.view === 'bind' && window.__pot.connected, null, 30000);
+  await page.check('input[name=b-key][value=new]');
+  await page.click('#b-wc');
+  await until(() => window.__potBind.check || (window.__pot.errors.length && !window.__pot.busy), null, 60000);
+  const bindState = await page.evaluate(() => ({ ok: window.__potBind.check?.ok, kind: window.__potBind.proofKind, reason: window.__potBind.check?.reason, proof: window.__potBind.proof, errors: window.__pot.errors }));
+  check('wallet-signed binding proof verifies in the page', bindState.ok === true && bindState.kind === 'wc-tx', JSON.stringify({ ...bindState, proof: undefined }));
+  const proofTx = JSON.parse(bindState.proof).tx;
+  let refusal = 'accepted';
+  try { await chip.sendRawTransaction(proofTx); } catch (e) { refusal = String(e?.message ?? e); }
+  check('binding proof cannot be mined (the network refuses it as non-final)', /non-final|locktime/i.test(refusal), refusal.slice(0, 200));
+  check('binding was not published by itself', (await page.evaluate(() => window.__potBind.published)) === null);
+  await page.screenshot({ path: `${out}bind-verified.png`, fullPage: true });
 
   // --- create pot A (deadline in 3 days, judge = me) and pot B (deadline = current block)
   const create = async (title, amount, height) => {
