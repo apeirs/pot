@@ -1,6 +1,6 @@
 # Pot: bounties you can trust, on Bitcoin Cash
 
-> **BCH BLAZE 2026 entry (Mainnet track)** · Deck: TODO (deck PDF link) · Repo: https://github.com/apeirs/pot
+> **BCH BLAZE 2026 entry (Mainnet track)** · Deck: https://apeir.dk/online/pot/deck.pdf · Repo: https://github.com/apeirs/pot
 > (pre-hackathon prep: https://gist.github.com/apeirs/aff6b63931c57e1a0729a72770abb325, tag `prehack-2026-11-14`;
 > pre-hackathon demo: https://apeir.dk/online/pot-chipnet/) · EMBER2026 CashTokens address:
 > `bitcoincash:zrk8th0g30cn28um7apj85un4l9vvd37lyf6j3l26f`
@@ -12,11 +12,11 @@ Live: **https://apeir.dk/online/pot/** (mainnet) · https://apeir.dk/online/pot/
 ## Try it in 2 minutes
 1. Open **[the BLAZE 2026 demo pot](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.979645.5000.2ab2c2e8333f7708)** (first under Featured on the home page): 0.0005 BCH locked on mainnet
    until block 979,645 (about 11-30). Its balance, deadline and history are read live from the chain.
-2. **Add to it**: scan the QR under "Or pay from any BCH wallet" with any BCH wallet, or connect Paytaca or Cashonize
+2. **Add to it**: scan the QR under "Or pay from any BCH wallet" with any BCH wallet, or connect Paytaca
    (Connect wallet, top right) and press "Send from my wallet". The pot updates within seconds.
 3. See the other two paths done: [pot A](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d) was awarded (both coins to one winner in one transaction), pot B was
    refunded after its deadline (links in the table below).
-4. **Create** your own pot: Connect wallet (top right) with Paytaca or Cashonize over WizardConnect, then Create a pot
+4. **Create** your own pot: Connect wallet (top right) with Paytaca or Selene over WizardConnect, then Create a pot
    (0.0001 BCH at least). Put the deadline 1-2 hours out.
    After the deadline you take it back with "Take the pot back"; before it, as the judge, you award it to another
    address.

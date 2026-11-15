@@ -1,4 +1,4 @@
-// Builds the page into web/dist/: one bundled app.js plus index.html and the icon. `node web/build.mjs`
+// Builds the page into web/dist/: one bundled app.js plus index.html, the icon and the deck PDF. `node web/build.mjs`
 // The script tag gets ?v=<build time> because the web host caches app.js.
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
@@ -13,5 +13,5 @@ await build({
 });
 const v = new Date().toISOString().replace(/\D/g, '').slice(0, 12);
 writeFileSync(new URL('index.html', dist), readFileSync(new URL('index.html', here), 'utf8').replace('app.js?v=dev', `app.js?v=${v}`));
-copyFileSync(new URL('icon.svg', here), new URL('icon.svg', dist));
+for (const f of ['icon.svg', 'deck.pdf']) copyFileSync(new URL(f, here), new URL(f, dist));
 console.log(`web/dist built (v=${v})`);

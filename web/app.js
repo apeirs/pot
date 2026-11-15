@@ -765,7 +765,7 @@ function renderWallet() {
     $('disconnect').onclick = () => disconnect();
   } else if (state.uri) {
     el.innerHTML = `
-      <div>Scan with a WizardConnect wallet${NET.name === 'chipnet' ? ' set to chipnet' : ''} (Cashonize, Paytaca, Selene):</div>
+      <div>Scan with a WizardConnect wallet${NET.name === 'chipnet' ? ' set to chipnet' : ''} (Paytaca, Selene):</div>
       <div class="qr" id="qr">${qrSvg(state.qrUri)}</div>
       <div class="row"><a class="btn small" href="${esc(state.uri)}">Open in wallet</a><button id="copy-uri" class="link">Copy link</button><button id="stop" class="link">Cancel</button></div>
       <div class="mono tiny" id="uri">${esc(state.uri)}</div>`;
