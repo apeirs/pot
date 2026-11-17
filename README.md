@@ -14,13 +14,15 @@ Live: **https://apeir.dk/online/pot/** (mainnet) · https://apeir.dk/online/pot/
    until block 979,645 (about 11-30). Its balance, deadline and history are read live from the chain.
 2. **Add to it**: scan the QR under "Or pay from any BCH wallet" with any BCH wallet, or connect Paytaca
    (Connect wallet, top right) and press "Send from my wallet". The pot updates within seconds.
-3. See the other two paths done: [pot A](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d) was awarded (both coins to one winner in one transaction), pot B was
+3. **Identity**: click the ✓ npub badge next to the judge. The [#/bind](https://apeir.dk/online/pot/#/bind?q=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns)
+   view fetches the judge's Nostr binding from the relays and verifies both signatures in the page.
+4. See the other two paths done: [pot A](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d) was awarded (both coins to one winner in one transaction), pot B was
    refunded after its deadline (links in the table below).
-4. **Create** your own pot: Connect wallet (top right) with Paytaca or Selene over WizardConnect, then Create a pot
+5. **Create** your own pot: Connect wallet (top right) with Paytaca or Selene over WizardConnect, then Create a pot
    (0.0001 BCH at least). Put the deadline 1-2 hours out.
    After the deadline you take it back with "Take the pot back"; before it, as the judge, you award it to another
    address.
-5. On chipnet the same page runs with free test coins: https://apeir.dk/online/pot/?net=chipnet
+6. On chipnet the same page runs with free test coins: https://apeir.dk/online/pot/?net=chipnet
 
 **Mainnet proof**, one transaction per path, signed by the Paytaca browser extension over WizardConnect:
 
@@ -64,7 +66,8 @@ judged by, or awarded to, an npub instead of a raw address.
   either a wallet `signmessage` signature (pasted) or a WizardConnect-signed transaction that commits to the message
   and can never be mined (locktime 4102444800, non-final). The page checks both signatures offline, then publishes the
   event to `nos.lol`, `relay.primal.net` and `relay.snort.social`.
-- **On a pot page** the poster's and judge's addresses get a verified npub badge when a valid binding exists.
+- **On a pot page** the poster's and judge's addresses get a verified npub badge when a valid binding exists. The badge
+  opens `#/bind?q=<npub>`, which fetches the binding from the relays and shows every check it passed.
 - **Pay by identity**: the create form's judge field and the award form's winner field accept an npub. The page finds
   the npub's binding on the relays, verifies both signatures, and uses the bound address (or its key, for a judge). It
   re-resolves at award time and puts the npub in the wallet prompt.

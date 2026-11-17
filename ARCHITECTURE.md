@@ -75,7 +75,7 @@ signed its award as judge. The `@wizardconnect/wallet` test wallet (`e2e/wallet.
 - **Valid** when the event signature, proof 2 over the same message, and the content/`d`/`i` fields all agree and
   `created` is within 5 min of `created_at`; the latest valid binding wins and a newer `revoked` one removes it
   (`resolve`). Events are verified as a fresh copy of the wire fields (nostr-tools caches a pass on the object).
-- **Use in Pot**: poster and judge get a verified npub badge; the judge and winner fields accept an npub, resolved and
+- **Use in Pot**: poster and judge get a verified npub badge (it opens `#/bind?q=<npub>` with every check shown); the judge and winner fields accept an npub, resolved and
   re-verified at award time. pennyops `bch-nostr-bind.v1` events are verified too; kind 31234 bridge events have no BCH
   proof and show as unverifiable. The Nostr secret stays in a closure (never the DOM or localStorage).
 

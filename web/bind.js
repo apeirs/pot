@@ -12,6 +12,7 @@ import {
 } from '../src/nostrbind.mjs';
 import { buildBindProof, wcRequest } from '../src/pot.mjs';
 
+const DEMO_NPUB = 'npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns'; // judge of the featured mainnet pots (test/mainnet-binding.json)
 const MIN_COIN = 846n; // proof fee 300 + dust 546: the coin the wallet signs over must be at least this
 
 /** ctx: { $, esc, NET, state, provider, getDapp, walletCoins, setMsg, setBusy, action, copy, addrLink, short, checkAddress, normalizeAddress, setAbort } */
@@ -42,7 +43,7 @@ export function makeIdentity(ctx) {
     const r = lookupAddr(addr);
     if (r.pending || r.error || !r.best) return '';
     const more = r.valid.length > 1 ? ` <span class="muted">+${r.valid.length - 1}</span>` : '';
-    return ` · <a class="idbadge" href="${esc(njump(r.best.npub))}" target="_blank" rel="noopener" title="${esc(`Verified ${fmtName(r.best.format)} binding: the npub and the address both signed it. Event ${r.best.eventId}`)}">✓ ${esc(shortNpub(r.best.npub))}</a>${more}`;
+    return ` · <a class="idbadge" href="#/bind?q=${esc(npubText(r.best.npub))}" title="${esc(`Verified ${fmtName(r.best.format)} binding: the npub and the address both signed it. Open to see every check. Event ${r.best.eventId}`)}">✓ ${esc(shortNpub(r.best.npub))}</a>${more}`;
   }
   function paintBadges() {
     document.querySelectorAll('[data-idaddr]').forEach((el) => { el.innerHTML = badgeHtml(el.dataset.idaddr); });
@@ -76,6 +77,7 @@ export function makeIdentity(ctx) {
   // ---------- #/bind view
   function viewBind() {
     state.view = 'bind';
+    const q = new URLSearchParams((location.hash.split('?')[1] ?? '')).get('q')?.trim() ?? ''; // #/bind?q=npub… (pot badges link here)
     const connected = state.connected;
     if (connected) b.addr = state.addr;
     const nip07 = typeof window.nostr?.signEvent === 'function';
@@ -114,7 +116,7 @@ export function makeIdentity(ctx) {
       <section id="b-lookup">
         <h3>Look up a binding</h3>
         <form id="b-lookup-form" class="row"><input id="b-q" class="mono" placeholder="npub1… or ${esc(NET.prefix)}:q…" aria-label="npub or BCH address" value="${esc(b.lookup?.q ?? '')}"><button>Look up</button></form>
-        <div id="b-lookup-box">${b.lookup ? lookupHtml(b.lookup) : ''}</div>
+        <div id="b-lookup-box">${b.lookup ? lookupHtml(b.lookup) : NET.name === 'mainnet' ? `<p class="muted">Example: <a href="#/bind?q=${DEMO_NPUB}">the demo pot's judge</a>, bound on mainnet with Paytaca.</p>` : ''}</div>
       </section>
       <details class="how"><summary>How a binding is checked</summary>
         <p>The binding is a Nostr event (kind 30078, <span class="mono">d = bch-bind:&lt;address&gt;</span>) whose content is the message in step 3. It is valid when:</p>
@@ -135,6 +137,10 @@ export function makeIdentity(ctx) {
     if (a) a.oninput = () => { b.addr = a.value.trim(); resetProof(); addrHint(); paintMsg(); };
     $('b-lookup-form').onsubmit = (ev) => { ev.preventDefault(); lookup($('b-q').value.trim()); };
     addrHint(); paintKey(); paintMsg(); paintCheck();
+    if (q && b.hashQ !== q) { // once per link, so a re-render (wallet connects) keeps a lookup typed by hand
+      b.hashQ = q; $('b-q').value = q; lookup(q);
+      $('b-lookup').scrollIntoView({ block: 'start' });
+    }
     ctx.setBusy(state.busyText);
   }
 
