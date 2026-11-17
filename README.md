@@ -71,6 +71,12 @@ judged by, or awarded to, an npub instead of a raw address.
 - **Pay by identity**: the create form's judge field and the award form's winner field accept an npub. The page finds
   the npub's binding on the relays, verifies both signatures, and uses the bound address (or its key, for a judge). It
   re-resolves at award time and puts the npub in the wallet prompt.
+- **Log in with it** ([`#/bind?login=<npub>`](https://apeir.dk/online/pot/#/bind)): the challenge-response check of the
+  Paytaca spec. The page finds the npub's binding on the relays and issues a challenge naming this site, the npub, a random
+  16-byte nonce and the time. The bound address signs it (a pasted `signmessage`, or the same never-mined WizardConnect
+  proof), and the page shows `✓ Logged in as <npub> / <address>` when the nonce is its own, unused and under 5 minutes
+  old, the binding verifies and the signature is by the bound address. Each nonce logs in once. Any app can reuse
+  `src/login.mjs` (no server needed).
 - **Format** `nostr-bch-bind v1`: a kind 30078 event, `d` = `bch-bind:<address>`, tags `i` = `bch:<address>` and
   `proof` = [`signmessage` | `wc-tx`, value]; content `nostr-bch-bind:v1 / npub:<hex> / bch:<address> / created:<ts>`.
   A binding is valid when the Nostr event signature, the BCH proof over the same message, and the address/key fields
@@ -132,7 +138,7 @@ Each rule of the contract, the attack it stops, and the test that tries it (`npm
 ## Run it
 ```
 npm ci
-npm test        # contract, sweep, app and network tests on a mock network (103 cases)
+npm test        # contract, sweep, app and network tests on a mock network (118 cases)
 npm run dev     # builds the page into web/dist and serves it on http://127.0.0.1:8917
 npm run e2e     # chipnet end to end in headless Chrome (needs Chrome and the test wallet's chipnet coins)
 ```

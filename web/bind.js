@@ -11,6 +11,7 @@ import {
   npubToHex, publishEvent, resolveNpub, unsignedBinding,
 } from '../src/nostrbind.mjs';
 import { buildBindProof, wcRequest } from '../src/pot.mjs';
+import { makeLoginVerifier, POT_DOMAIN, LOGIN_TTL } from '../src/login.mjs';
 
 const DEMO_NPUB = 'npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns'; // judge of the featured mainnet pots (test/mainnet-binding.json)
 const MIN_COIN = 846n; // proof fee 300 + dust 546: the coin the wallet signs over must be at least this
@@ -25,6 +26,8 @@ export function makeIdentity(ctx) {
   const shortAddr = (a) => ctx.short(String(a ?? '').split(':').pop(), 12);
   const b = (window.__potBind = { key: null, keySource: null, addr: '', created: 0, proof: null, proofKind: null, event: null, check: null, published: null, lookup: null });
   let sk = null; // Uint8Array secret key (generated or pasted); never leaves this closure
+  const desk = makeLoginVerifier({ domain: POT_DOMAIN }); // this page is the "independent app" of the login demo
+  const L = (window.__potLogin = { npub: '', pending: false, error: '', binding: null, challenge: null, result: null, session: null });
   const act = (fn) => (...a) => ctx.action(fn)(...a); // ctx.action is defined after this module is set up
 
   // ---------- badges on the pot page (cached per address for this visit)
@@ -77,7 +80,9 @@ export function makeIdentity(ctx) {
   // ---------- #/bind view
   function viewBind() {
     state.view = 'bind';
-    const q = new URLSearchParams((location.hash.split('?')[1] ?? '')).get('q')?.trim() ?? ''; // #/bind?q=npub… (pot badges link here)
+    const hq = new URLSearchParams((location.hash.split('?')[1] ?? ''));
+    const q = hq.get('q')?.trim() ?? ''; // #/bind?q=npub… (pot badges link here)
+    const lq = hq.get('login')?.trim() ?? ''; // #/bind?login=npub… opens the login demo for that npub
     const connected = state.connected;
     if (connected) b.addr = state.addr;
     const nip07 = typeof window.nostr?.signEvent === 'function';
@@ -118,6 +123,14 @@ export function makeIdentity(ctx) {
         <form id="b-lookup-form" class="row"><input id="b-q" class="mono" placeholder="npub1… or ${esc(NET.prefix)}:q…" aria-label="npub or BCH address" value="${esc(b.lookup?.q ?? '')}"><button>Look up</button></form>
         <div id="b-lookup-box">${b.lookup ? lookupHtml(b.lookup) : NET.name === 'mainnet' ? `<p class="muted">Example: <a href="#/bind?q=${DEMO_NPUB}">the demo pot's judge</a>, bound on mainnet with Paytaca.</p>` : ''}</div>
       </section>
+      <section id="b-login">
+        <h3>Log in with a bound identity</h3>
+        <p>How any other app can check that you control an identity: it gives you a fresh challenge, the BCH address bound to your npub
+          signs it, and the app verifies that signature against the binding on Nostr. Here this page plays the app; it keeps no account and
+          sends nothing to a server.</p>
+        <form id="b-login-form" class="row"><input id="b-login-npub" class="mono" placeholder="npub1…" aria-label="npub to log in as" value="${esc(L.npub)}"><button>Get a challenge</button></form>
+        <div id="b-login-box">${loginHtml()}</div>
+      </section>
       <details class="how"><summary>How a binding is checked</summary>
         <p>The binding is a Nostr event (kind 30078, <span class="mono">d = bch-bind:&lt;address&gt;</span>) whose content is the message in step 3. It is valid when:</p>
         <ul>
@@ -130,16 +143,26 @@ export function makeIdentity(ctx) {
           <span class="mono">bch-nostr-bind.v1</span> format (Cashonize). <span class="mono">bch-identity-bridge</span> claims are shown greyed out:
           their BCH signature isn't published, so nobody can check them from Nostr alone.
           Relays: ${DEFAULT_RELAYS.map((r) => `<span class="mono">${esc(r.replace('wss://', ''))}</span>`).join(', ')}.</p>
+        <p>Login: the challenge names this site (<span class="mono">${esc(POT_DOMAIN)}</span>), the npub, a random 16-byte nonce and the time. It is
+          accepted when this page issued that nonce less than ${LOGIN_TTL / 60} minutes ago and it was not used before, the npub's binding verifies,
+          and the bound address signed the challenge (signed message, or the never-sent proof transaction). Each nonce logs in once.
+          Other apps can do the same with <span class="mono">src/login.mjs</span>.</p>
       </details>`;
 
     document.querySelectorAll('input[name=b-key]').forEach((r) => { r.onchange = () => { if (b.keySource !== r.value) { b.keySource = r.value; sk = null; b.key = null; resetProof(); } paintKey(); paintMsg(); }; });
     const a = $('b-addr');
     if (a) a.oninput = () => { b.addr = a.value.trim(); resetProof(); addrHint(); paintMsg(); };
     $('b-lookup-form').onsubmit = (ev) => { ev.preventDefault(); lookup($('b-q').value.trim()); };
+    $('b-login-form').onsubmit = (ev) => { ev.preventDefault(); startLogin($('b-login-npub').value.trim()); };
+    wireLogin();
     addrHint(); paintKey(); paintMsg(); paintCheck();
     if (q && b.hashQ !== q) { // once per link, so a re-render (wallet connects) keeps a lookup typed by hand
       b.hashQ = q; $('b-q').value = q; lookup(q);
       $('b-lookup').scrollIntoView({ block: 'start' });
+    }
+    if (lq && b.hashLogin !== lq) {
+      b.hashLogin = lq; $('b-login-npub').value = lq; startLogin(lq);
+      $('b-login').scrollIntoView({ block: 'start' });
     }
     ctx.setBusy(state.busyText);
   }
@@ -212,16 +235,15 @@ export function makeIdentity(ctx) {
     ctx.setBusy(state.busyText);
   }
 
-  const signWithWallet = act(async () => {
+  /** The connected wallet signs a never-sent transaction committing to msg (WizardConnect has no sign-message request). */
+  async function walletProof(msg, userPrompt) {
     const dapp = ctx.getDapp();
     if (!state.connected || !dapp) throw new Error('Connect a wallet first.');
     const addr = state.addr;
     const coins = (await ctx.walletCoins()).filter((c) => c.address === addr && !c.utxo.token && c.utxo.satoshis >= MIN_COIN)
       .sort((x, y) => (x.utxo.satoshis < y.utxo.satoshis ? -1 : 1));
     if (!coins.length) throw new Error(`The wallet needs a coin of at least ${MIN_COIN} sats on ${addr} to sign the proof (nothing is spent). Or paste a signed message instead.`);
-    const msg = bindingMessage(b.key, addr, b.created);
-    const p = buildBindProof({ provider: ctx.provider, coin: coins[0], message: msg,
-      userPrompt: `Signature only, never sent: bind ${addr} to ${shortNpub(b.key)} on Nostr` });
+    const p = buildBindProof({ provider: ctx.provider, coin: coins[0], message: msg, userPrompt });
     const abort = new AbortController();
     ctx.setAbort(abort);
     ctx.setBusy('Check your wallet: it asks for a signature only. This transaction is never sent.', true);
@@ -230,8 +252,77 @@ export function makeIdentity(ctx) {
     catch (e) { console.info('[pot] bind sign ended', e); throw new Error("The wallet didn't sign. Nothing was sent."); }
     finally { ctx.setAbort(null); }
     if (resp?.error || !resp?.signedTransaction) throw new Error(`The wallet didn't sign.${resp?.error ? ` (${resp.error})` : ''}`);
-    await useProof('wc-tx', p.proof(resp.signedTransaction));
+    return p.proof(resp.signedTransaction);
+  }
+
+  const signWithWallet = act(async () => {
+    const msg = bindingMessage(b.key, state.addr, b.created);
+    await useProof('wc-tx', await walletProof(msg, `Signature only, never sent: bind ${state.addr} to ${shortNpub(b.key)} on Nostr`));
   });
+
+  // ---------- login (challenge-response)
+  async function startLogin(text) {
+    L.npub = text; L.error = ''; L.binding = null; L.challenge = null; L.result = null;
+    const hex = npubToHex(text);
+    if (!hex) { L.error = 'That is not a valid npub.'; paintLogin(); return; }
+    L.pending = true; paintLogin();
+    try {
+      const r = await resolveNpub(hex, { prefix: NET.prefix, timeoutMs: 8000 });
+      L.binding = { ...r.best, ok: true };
+      L.challenge = desk.issue(hex);
+    } catch (e) { L.error = e.message; }
+    L.pending = false; paintLogin();
+  }
+
+  function finishLogin(kind, proof) {
+    if (!L.challenge || !L.binding) return;
+    if (!proof) { ctx.setMsg('err', 'Paste the signature first.'); return; }
+    L.result = desk.verify({ challenge: L.challenge.text, proofKind: kind, proof, binding: L.binding });
+    if (L.result.ok) L.session = { npub: L.result.npub, addr: L.result.addr, at: Math.floor(Date.now() / 1000) };
+    ctx.setMsg(L.result.ok ? 'ok' : 'err', L.result.ok ? `Logged in as ${shortNpub(L.result.npub)}.` : `Login refused: ${L.result.reason}.`);
+    paintLogin();
+  }
+
+  const loginWithWallet = act(async () => {
+    const proof = await walletProof(L.challenge.text, `Signature only, never sent: log in to ${POT_DOMAIN} as ${shortNpub(L.binding.npub)}`);
+    finishLogin('wc-tx', proof);
+  });
+
+  const hhmm = (t) => new Date(t * 1000).toISOString().slice(11, 19);
+  function loginHtml() {
+    const s = L.session ? `<p class="ok" id="b-login-session"><b>✓ Logged in as ${esc(shortNpub(L.session.npub))} / ${esc(shortAddr(L.session.addr))}</b>
+      <span class="muted small">since ${hhmm(L.session.at)} UTC · <button id="b-logout" class="link">Log out</button></span></p>` : '';
+    if (L.pending) return `${s}<p class="muted"><span class="spinner"></span> Finding the npub's binding on the relays…</p>`;
+    if (L.error) return `${s}<p class="err">${esc(L.error)}</p>`;
+    const r = L.result;
+    const verdict = r ? `<p class="${r.ok ? 'ok' : 'err'}" id="b-login-verdict"><b>${r.ok ? `✓ Logged in as ${esc(npubText(r.npub))} / ${esc(r.addr)}` : `✗ Not logged in: ${esc(r.reason)}`}</b></p>${checksHtml(r)}` : '';
+    if (!L.challenge) return s || '<p class="muted">Enter an npub that has a binding. The page finds its BCH address on Nostr and issues a challenge for that address to sign.</p>';
+    const c = L.challenge, addr = L.binding.addr, used = r?.ok;
+    const canWallet = state.connected && state.addr === addr;
+    return `${s}<p>Bound address: ${ctx.addrLink(addr)} <span class="muted small">(${esc(fmtName(L.binding.format))}, verified)</span></p>
+      <pre class="mono small" id="b-login-msg">${esc(c.text)}</pre>
+      <p class="muted small">Challenge valid until ${hhmm(c.expires)} UTC (${LOGIN_TTL / 60} minutes), for one login.${used ? ' Used: ask for a new one to log in again.' : ''}</p>
+      ${used ? '' : `${canWallet ? `<p><button data-act="login-wc" id="b-login-wc">Sign with ${esc(state.walletName)}</button>
+          <span class="muted small">a transaction locked until 2100 that is never sent; it only proves the address signed</span></p>`
+        : state.connected ? `<p class="muted small">The connected wallet's address is not the bound one; paste a signed message instead.</p>` : ''}
+        <div class="row"><button id="b-login-copy" class="link">Copy the challenge</button></div>
+        <p class="muted small">Sign the challenge exactly with ${esc(shortAddr(addr))} in a wallet with Sign Message (Paytaca, Electron Cash, Cashonize) and paste the signature:</p>
+        <div class="row"><input id="b-login-sig" class="mono" placeholder="H… or I… (base64 signature)" aria-label="Login signature"><button id="b-login-use">Log in</button></div>`}
+      ${verdict}`;
+  }
+  function wireLogin() {
+    const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+    on('b-login-copy', () => ctx.copy(L.challenge.text, 'b-login-copy'));
+    on('b-login-use', () => finishLogin('signmessage', $('b-login-sig').value.trim()));
+    on('b-login-wc', () => loginWithWallet());
+    on('b-logout', () => { L.session = null; L.result = null; paintLogin(); });
+  }
+  function paintLogin() {
+    const box = $('b-login-box');
+    if (!box) return;
+    box.innerHTML = loginHtml(); wireLogin();
+    ctx.setBusy(state.busyText);
+  }
 
   async function useProof(kind, proof) {
     try {

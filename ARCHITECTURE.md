@@ -79,9 +79,17 @@ signed its award as judge. The `@wizardconnect/wallet` test wallet (`e2e/wallet.
   re-verified at award time. pennyops `bch-nostr-bind.v1` events are verified too; kind 31234 bridge events have no BCH
   proof and show as unverifiable. The Nostr secret stays in a closure (never the DOM or localStorage).
 
+- **Login** (`src/login.mjs`, the `#/bind` login box): challenge `nostr-bch-bind:login:v1\ndomain:<app>\nnpub:<hex>\nnonce:<16 random bytes hex>\nissued:<unix>`
+  (~175 bytes, under the 253-byte signmessage limit; it can never parse as a binding message). `makeLoginVerifier({domain})`
+  keeps the nonces it issued; `verify` accepts one only for its own domain, issued by it, unused, at most 300 s old (30 s
+  skew), with a valid binding of that npub and a `signmessage`/`wc-tx` proof by the bound address over the exact text.
+  A success consumes the nonce (replay refused); a failed signature leaves it for a retry; an expired one is dropped.
+
 ## Tests
-- `npm test` (103 cases, mock network): every contract rule (each rejected case names its Pot.cash line), the sweep
-  planner, the app's transactions, the identity vectors (incl. the real mainnet binding), and the network layer.
+- `npm test` (118 cases, mock network): every contract rule (each rejected case names its Pot.cash line), the sweep
+  planner, the app's transactions, the identity vectors (incl. the real mainnet binding), the login (valid signmessage
+  and wc-tx, wrong address, another npub's binding, expired, replayed, forged, foreign domain, garbage proofs), and the
+  network layer.
 - `npm run e2e`: the built page in headless Chrome against chipnet with a test wallet over the real relay: pairing,
   create, a rejected request, resume after reload, top-up, a wallet-signed binding (refused by the network as
   non-final), award of two coins, refund, and the mainnet page refusing a testnet wallet.
