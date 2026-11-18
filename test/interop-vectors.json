@@ -59,6 +59,30 @@
     "id": "ff4e5fe59e9da789a8ec961477322ac946d1cc06b8fdc85ab45be897a8d94feb",
     "sig": "896070c175dfb5c27ef701a0fc6dd88b27595e68ddc75c5e03c8108c7df4a9088ac530fc39213bf3a46c882e7280c230ba65d6e507e8ba51ee1194f70d71dc26"
    }
+  },
+  {
+   "name": "NIP-39 kind 10011 bch: claim (signmessage over the NIP-39 verification text)",
+   "expect": true,
+   "event": {
+    "kind": 10011,
+    "created_at": 1794000000,
+    "content": "",
+    "tags": [
+     [
+      "i",
+      "github:example",
+      "0123456789abcdef0123456789abcdef"
+     ],
+     [
+      "i",
+      "bch:bitcoincash:qzavy69mgnnrzz5ua0td95ee4n298dvs2uuyrtlwen",
+      "H6jys16TVDqTOfecaIWRXaFKr/+wbpO70SZJM1U+0O7dONmPP7L7P58MI+xvO8+ICv8C5mgPb7ZrfxRc8u1hUoc="
+     ]
+    ],
+    "pubkey": "3a5bce3ac4e98bbc0b231ebbab2647bdacef00478e6b9515c853806e303ced94",
+    "id": "a9c33011e7a1549ea5144144ad7db67bcbe4862930e14294250632b36273ef6b",
+    "sig": "ec667181a14ca221205cb486ebb9799656d609f364a855001bd7fda0a9042d02e97f59be17d82a5db4e8902050f2af89f8cad264b1db394351c4c5077e93e6e3"
+   }
   }
  ]
 }

@@ -11,7 +11,8 @@ import {
 import { MockNetworkProvider, randomUtxo } from 'cashscript';
 import { signMessage, bindingMessage, verifyBinding } from '../src/bindverify.mjs';
 import {
-  checkBinding, pickBindings, bindingPubkey, npubToHex, resolveNpub, findByAddress, publishEvent, unsignedBinding, SIGNMESSAGE_LIMIT,
+  checkBinding, checkBindings, pickBindings, bindingPubkey, npubToHex, resolveNpub, findByAddress, publishEvent, unsignedBinding, SIGNMESSAGE_LIMIT,
+  NIP39_KIND, nip39Text,
 } from '../src/nostrbind.mjs';
 import { buildBindProof, wcRequest, BIND_LOCKTIME, p2pkhAddress } from '../src/pot.mjs';
 
@@ -44,7 +45,18 @@ if (!existsSync(IV)) {
     vectors: [{ name: 'pennyops bch-nostr-bind.v1 (signmessage in the i tag)', expect: true, event: penny },
       { name: 'bch-identity-bridge 1.0.0 (kind 31234, BCH signature kept off-relay)', expect: false, event: bib }] }, null, 1));
 }
+{ // NIP-39 vector (kind 10011 identity list with a bch: claim), added 11-18 to the stored file
+  const f = JSON.parse(readFileSync(IV, 'utf8'));
+  if (!f.vectors.some((v) => v.event.kind === 10011)) {
+    const ev = finalizeEvent({ kind: 10011, created_at: T, content: '',
+      tags: [['i', 'github:example', '0123456789abcdef0123456789abcdef'], ['i', `bch:${addrA}`, signMessage(bchA, nip39Text(npubA))]] }, nsecA);
+    f.vectors.push({ name: 'NIP-39 kind 10011 bch: claim (signmessage over the NIP-39 verification text)', expect: true, event: ev });
+    writeFileSync(IV, JSON.stringify(f, null, 1));
+  }
+}
 const interop = JSON.parse(readFileSync(IV, 'utf8')).vectors;
+const nip39Vec = interop.find((v) => v.event.kind === 10011).event;
+const nip39 = (nsec, claims, created = T) => finalizeEvent({ kind: NIP39_KIND, created_at: created, content: '', tags: claims.map((c) => ['i', ...c]) }, nsec);
 
 await t('every stored v1 vector: checkBinding agrees with the expected result', () => {
   const { vectors } = JSON.parse(readFileSync(new URL('./bind-vectors.json', import.meta.url)));
@@ -70,6 +82,42 @@ await t('bch-identity-bridge vector: Nostr signature checks, but it is reported 
   const c = checkBinding(interop[1].event);
   eq(c.ok, false); eq(c.unverifiable, true); eq(c.checks[0].ok, true); eq(c.addr, addrA);
   eq(pickBindings([interop[1].event]).best, null);
+});
+
+await t('NIP-39 vector verifies as format nip39; address, npub and the judge key come out', () => {
+  const c = checkBinding(nip39Vec);
+  eq(c.ok, true, c.reason); eq(c.format, 'nip39'); eq(c.addr, addrA); eq(c.npub, npubA); eq(c.proofKind, 'signmessage');
+  eq(c.checks.every((x) => x.ok), true, 'all checks');
+  eq(nip39Text(npubA), `Verifying that I control the following Nostr public key: ${npubEncode(npubA)}`);
+  eq(bindingPubkey(nip39Vec, addrA), binToHex(secp256k1.derivePublicKeyCompressed(bchA)));
+  eq(pickBindings([nip39Vec]).best.addr, addrA);
+});
+
+await t('NIP-39 refusals: another BCH key, a proof copied from another npub\'s list, no signature, an edited tag', () => {
+  const r = (ev) => checkBinding(ev);
+  eq(r(nip39(nsecA, [[`bch:${addrA}`, signMessage(bchB, nip39Text(npubA))]])).reason, 'signature is not by this address');
+  eq(r(nip39(nsecB, [[`bch:${addrA}`, signMessage(bchA, nip39Text(npubA))]])).reason, 'signature is not by this address');
+  eq(r(nip39(nsecA, [[`bch:${addrA}`]])).ok, false);
+  const edited = { ...nip39Vec, tags: [['i', `bch:${addrB}`, nip39Vec.tags[1][2]]] };
+  eq(r(edited).reason, 'bad nostr id or signature');
+  eq(pickBindings([edited]).best, null);
+});
+
+await t('NIP-39 list: several bch: claims each checked, non-bch claims ignored; a list without one is not a binding', () => {
+  const ev = nip39(nsecA, [['github:x', 'y'], [`bch:${addrA}`, signMessage(bchA, nip39Text(npubA))], [`bch:${addrB}`, signMessage(bchB, nip39Text(npubA))]]);
+  eq(checkBindings(ev).filter((c) => c.ok).length, 2);
+  eq(checkBinding(ev, { addr: addrB }).addr, addrB);
+  eq(pickBindings([ev], { addr: addrB }).valid.length, 1);
+  eq(checkBinding(nip39(nsecA, [['github:x', 'y']])), null);
+});
+
+await t('NIP-39 is replaceable: a newer list without the bch: claim ends it; a forged newer copy does not', () => {
+  const old = nip39(nsecA, [[`bch:${addrA}`, signMessage(bchA, nip39Text(npubA))]], T);
+  const newer = nip39(nsecA, [['github:x', 'y']], T + 10);
+  eq(pickBindings([old, newer]).best, null);
+  const forged = { ...nip39(nsecA, [['github:x', 'y']], T + 20), sig: '00'.repeat(64) };
+  eq(pickBindings([old, forged]).best?.addr, addrA);
+  eq(pickBindings([old, v1(nsecA, bchB, addrB, T + 5)]).valid.length, 2, 'v1 and NIP-39 side by side');
 });
 
 await t('other apps\' kind 30078 data is ignored', () => {
@@ -197,6 +245,15 @@ await t('find by address (#i): our format and pennyops both found, a binding to 
   const { WS } = mockRelays([v1(nsecB, bchA, addrA, T + 5), interop[0].event, v1(nsecA, bchB, addrB, T)]);
   const r = await findByAddress(addrA, { relays: ['wss://a'], WebSocketImpl: WS, timeoutMs: 300 });
   eq(r.valid.length, 2); eq(r.best.npub, npubB); eq(r.valid[1].format, 'pennyops');
+});
+
+await t('NIP-39 over relays: resolve by npub and find by address both return the verified kind 10011 claim', async () => {
+  const { WS } = mockRelays([nip39Vec]);
+  const o = { relays: ['wss://a'], WebSocketImpl: WS, timeoutMs: 300 };
+  const r = await resolveNpub(npubEncode(npubA), o);
+  eq(r.best.format, 'nip39'); eq(r.best.addr, addrA); eq(bindingPubkey(r.best.event, r.best.addr), binToHex(secp256k1.derivePublicKeyCompressed(bchA)));
+  const f = await findByAddress(addrA, o);
+  eq(f.best?.format, 'nip39'); eq(f.best.npub, npubA);
 });
 
 await t('publish: each relay\'s OK is reported', async () => {

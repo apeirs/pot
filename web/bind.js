@@ -12,6 +12,7 @@ import {
 } from '../src/nostrbind.mjs';
 import { buildBindProof, wcRequest } from '../src/pot.mjs';
 import { makeLoginVerifier, POT_DOMAIN, LOGIN_TTL } from '../src/login.mjs';
+import { makeTryIt } from '../src/tryit.mjs';
 
 const DEMO_NPUB = 'npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns'; // judge of the featured mainnet pots (test/mainnet-binding.json)
 const MIN_COIN = 846n; // proof fee 300 + dust 546: the coin the wallet signs over must be at least this
@@ -29,6 +30,10 @@ export function makeIdentity(ctx) {
   const desk = makeLoginVerifier({ domain: POT_DOMAIN }); // this page is the "independent app" of the login demo
   const L = (window.__potLogin = { npub: '', pending: false, error: '', binding: null, challenge: null, result: null, session: null });
   const act = (fn) => (...a) => ctx.action(fn)(...a); // ctx.action is defined after this module is set up
+  let TRY = null; // the no-wallet demo: { d (src/tryit.mjs, public data only), attacks: { name: results } }; its keys stay inside makeTryIt
+  Object.defineProperty(window, '__potTry', { configurable: true, get: () => TRY && { npub: TRY.d.me.npub, addr: TRY.d.me.addr,
+    binding: TRY.d.binding.result.ok, nip39: TRY.d.nip39.result.ok, login: TRY.d.login.result.ok,
+    attacks: Object.fromEntries(Object.entries(TRY.attacks).map(([k, v]) => [k, v.map((r) => ({ ok: r.ok, reason: r.reason }))])) } });
 
   // ---------- badges on the pot page (cached per address for this visit)
   const byAddr = new Map();
@@ -61,7 +66,7 @@ export function makeIdentity(ctx) {
     if (!byNpub.has(hex)) {
       byNpub.set(hex, { pending: true });
       resolveNpub(hex, { prefix: NET.prefix, timeoutMs: 6000 })
-        .then((r) => byNpub.set(hex, { hex, best: r.best, pub: bindingPubkey(r.best.event) }))
+        .then((r) => byNpub.set(hex, { hex, best: r.best, pub: bindingPubkey(r.best.event, r.best.addr) }))
         .catch((e) => byNpub.set(hex, { hex, error: e.message }))
         .finally(() => onDone?.());
     }
@@ -72,7 +77,7 @@ export function makeIdentity(ctx) {
     const hex = npubToHex(text);
     if (!hex) throw new Error('That is not a valid npub.');
     const r = await resolveNpub(hex, { prefix: NET.prefix, timeoutMs: 8000 });
-    const out = { hex, best: r.best, pub: bindingPubkey(r.best.event) };
+    const out = { hex, best: r.best, pub: bindingPubkey(r.best.event, r.best.addr) };
     byNpub.set(hex, out);
     return out;
   }
@@ -83,6 +88,7 @@ export function makeIdentity(ctx) {
     const hq = new URLSearchParams((location.hash.split('?')[1] ?? ''));
     const q = hq.get('q')?.trim() ?? ''; // #/bind?q=npub… (pot badges link here)
     const lq = hq.get('login')?.trim() ?? ''; // #/bind?login=npub… opens the login demo for that npub
+    const tq = hq.has('try'); // #/bind?try runs the no-wallet demo
     const connected = state.connected;
     if (connected) b.addr = state.addr;
     const nip07 = typeof window.nostr?.signEvent === 'function';
@@ -92,6 +98,14 @@ export function makeIdentity(ctx) {
         <p>Bind a BCH address to a Nostr key, so people can pay you, or name you as a judge, by your npub. Both keys sign one short
           message; the result is a public Nostr event anyone can check without trusting this page or a server.
           Pot shows a ✓ npub next to a bound poster or judge.</p>
+      </section>
+      <section id="b-try">
+        <h3>Try it without a wallet</h3>
+        <p>One click runs the whole flow with throwaway keys made in this page: a BCH key and a separate Nostr key sign one binding, the page
+          verifies it with the same checks it applies to events from the relays, then logs in with it by challenge-response. Then try to cheat.</p>
+        <p class="muted small">The throwaway secret keys are never stored, shown or published, and the address is never funded. They are gone when you leave the page.</p>
+        <p><button id="b-try-run">${TRY ? 'Run it again with new keys' : 'Try it with throwaway keys'}</button></p>
+        <div id="b-try-box">${tryHtml()}</div>
       </section>
       <section id="b-step1">
         <h3>1. Your BCH address</h3>
@@ -139,7 +153,9 @@ export function makeIdentity(ctx) {
           <li>the address signed the same message: a standard signed message (Paytaca, Electron Cash, Cashonize), or a wallet-signed
             transaction that commits to the message's hash and can never be mined (locktime year 2100), for wallets that sign over WizardConnect.</li>
         </ul>
-        <p>Newest valid binding wins; a newer signed event with content <span class="mono">revoked</span> ends one. Pot also reads bindings made in the
+        <p>Newest valid binding wins; a newer signed event with content <span class="mono">revoked</span> ends one. Pot also reads and verifies
+          NIP-39 claims (kind 10011, <span class="mono">["i", "bch:&lt;address&gt;", &lt;signed message&gt;]</span> over NIP-39's text
+          <span class="mono">Verifying that I control the following Nostr public key: &lt;npub&gt;</span>) and bindings in the
           <span class="mono">bch-nostr-bind.v1</span> format (Cashonize). <span class="mono">bch-identity-bridge</span> claims are shown greyed out:
           their BCH signature isn't published, so nobody can check them from Nostr alone.
           Relays: ${DEFAULT_RELAYS.map((r) => `<span class="mono">${esc(r.replace('wss://', ''))}</span>`).join(', ')}.</p>
@@ -155,11 +171,14 @@ export function makeIdentity(ctx) {
     $('b-lookup-form').onsubmit = (ev) => { ev.preventDefault(); lookup($('b-q').value.trim()); };
     $('b-login-form').onsubmit = (ev) => { ev.preventDefault(); startLogin($('b-login-npub').value.trim()); };
     wireLogin();
+    $('b-try-run').onclick = () => runTry();
+    wireTry();
     addrHint(); paintKey(); paintMsg(); paintCheck();
     if (q && b.hashQ !== q) { // once per link, so a re-render (wallet connects) keeps a lookup typed by hand
       b.hashQ = q; $('b-q').value = q; lookup(q);
       $('b-lookup').scrollIntoView({ block: 'start' });
     }
+    if (tq && !b.hashTry) { b.hashTry = true; runTry(); $('b-try').scrollIntoView({ block: 'start' }); }
     if (lq && b.hashLogin !== lq) {
       b.hashLogin = lq; $('b-login-npub').value = lq; startLogin(lq);
       $('b-login').scrollIntoView({ block: 'start' });
@@ -260,6 +279,59 @@ export function makeIdentity(ctx) {
     await useProof('wc-tx', await walletProof(msg, `Signature only, never sent: bind ${state.addr} to ${shortNpub(b.key)} on Nostr`));
   });
 
+  // ---------- try it without a wallet (src/tryit.mjs)
+  function runTry() {
+    try { TRY = { d: makeTryIt({ prefix: NET.prefix, domain: POT_DOMAIN }), attacks: {} }; }
+    catch (e) { TRY = null; ctx.setMsg('err', `The demo failed: ${e?.message ?? e}`); return; }
+    const ok = TRY.d.binding.result.ok && TRY.d.login.result.ok;
+    ctx.setMsg(ok ? 'ok' : 'err', ok ? 'Throwaway identity bound, verified and logged in. Now try to cheat (below).' : 'The demo did not verify; see below.');
+    paintTry();
+  }
+  const ATTACKS = [
+    ['copied', 'Copy the proof to another npub'],
+    ['borrowed', 'Claim the address with another key'],
+    ['edited', 'Edit the event, replay the login'],
+  ];
+  const verdictLine = (r, okText) => `<p class="${r.ok ? 'ok' : 'err'}"><b>${r.ok ? `✓ ${okText}` : `✗ Not valid: ${esc(r.reason)}`}</b></p>`;
+  function tryHtml() {
+    if (!TRY) return '';
+    const d = TRY.d, bR = d.binding.result, nR = d.nip39.result, lR = d.login.result;
+    const attackRows = (name) => (TRY.attacks[name] ?? []).map((r) => `<li class="${r.ok ? 'ok' : 'err'}" data-try-result="${name}">${r.ok ? '✓ accepted (this is a bug)' : '✗ refused'}: ${esc(r.what)}.
+      <br><span class="small">Reason: <b>${esc(r.reason)}</b></span></li>`).join('');
+    return `<div class="trybox" id="b-try-out">
+      <p><b>1. Two throwaway keys.</b> Nostr: <span class="mono small">${esc(npubText(d.me.npub))}</span><br>
+        BCH: <span class="mono small">${esc(d.me.addr)}</span></p>
+      <p><b>2. Both keys sign one binding message</b> (Nostr: the event signature; BCH: a standard signed message):</p>
+      <pre class="mono small">${esc(d.binding.message)}</pre>
+      <div id="b-try-bind">${verdictLine(bR, `Valid binding: ${esc(shortNpub(bR.npub))} ↔ ${esc(shortAddr(bR.addr))}`)}${checksHtml(bR)}</div>
+      <details><summary>The event (nostr-bch-bind v1, kind 30078)</summary><pre class="mono small">${esc(JSON.stringify(d.binding.event, null, 1))}</pre></details>
+      <div id="b-try-nip39">${verdictLine(nR, 'The same identity as a NIP-39 claim (kind 10011, <span class="mono">["i", "bch:&lt;address&gt;", &lt;signature&gt;]</span>) verifies too')}</div>
+      <details><summary>The NIP-39 event</summary><pre class="mono small">${esc(JSON.stringify(d.nip39.event, null, 1))}</pre></details>
+      <p><b>3. Log in.</b> This page issues a challenge; the throwaway BCH address signs it:</p>
+      <pre class="mono small">${esc(d.login.challenge.text)}</pre>
+      <div id="b-try-login">${verdictLine(lR, `Logged in as <span class="mono">${esc(npubText(lR.npub ?? d.me.npub))}</span> / <span class="mono">${esc(lR.addr ?? '')}</span>`)}${checksHtml(lR)}</div>
+      <p><b>4. Now try to cheat.</b> Each button forges something with a second throwaway identity; the same checks must refuse it.</p>
+      <div class="row">${ATTACKS.map(([n, label]) => `<button class="btn small ghost" id="b-try-${n}" data-try="${n}">${esc(label)}</button>`).join('')}</div>
+      <ul class="checks" id="b-try-attacks">${ATTACKS.map(([n]) => attackRows(n)).join('')}</ul>
+      <p class="muted small">Nothing here was published or sent. A real binding is made in steps 1 to 4 below, with your wallet and your Nostr key.</p>
+    </div>`;
+  }
+  function wireTry() {
+    document.querySelectorAll('[data-try]').forEach((el) => { el.onclick = () => {
+      const n = el.dataset.try;
+      try { TRY.attacks[n] = TRY.d.attack(n); } catch (e) { ctx.setMsg('err', String(e?.message ?? e)); return; }
+      const all = TRY.attacks[n].every((r) => !r.ok);
+      ctx.setMsg(all ? 'ok' : 'err', all ? `Refused: ${TRY.attacks[n].map((r) => r.reason).join('; ')}.` : 'A forgery was accepted. Please report this.');
+      paintTry();
+    }; });
+  }
+  function paintTry() {
+    const box = $('b-try-box');
+    if (!box) return;
+    box.innerHTML = tryHtml(); wireTry();
+    const run = $('b-try-run'); if (run) run.textContent = TRY ? 'Run it again with new keys' : 'Try it with throwaway keys';
+  }
+
   // ---------- login (challenge-response)
   async function startLogin(text) {
     L.npub = text; L.error = ''; L.binding = null; L.challenge = null; L.result = null;
@@ -295,7 +367,7 @@ export function makeIdentity(ctx) {
     if (L.pending) return `${s}<p class="muted"><span class="spinner"></span> Finding the npub's binding on the relays…</p>`;
     if (L.error) return `${s}<p class="err">${esc(L.error)}</p>`;
     const r = L.result;
-    const verdict = r ? `<p class="${r.ok ? 'ok' : 'err'}" id="b-login-verdict"><b>${r.ok ? `✓ Logged in as ${esc(npubText(r.npub))} / ${esc(r.addr)}` : `✗ Not logged in: ${esc(r.reason)}`}</b></p>${checksHtml(r)}` : '';
+    const verdict = r ? `<p class="${r.ok ? 'ok' : 'err'}" id="b-login-verdict"><b>${r.ok ? `✓ Logged in as <span class="mono">${esc(npubText(r.npub))}</span> / <span class="mono">${esc(r.addr)}</span>` : `✗ Not logged in: ${esc(r.reason)}`}</b></p>${checksHtml(r)}` : '';
     if (!L.challenge) return s || '<p class="muted">Enter an npub that has a binding. The page finds its BCH address on Nostr and issues a challenge for that address to sign.</p>';
     const c = L.challenge, addr = L.binding.addr, used = r?.ok;
     const canWallet = state.connected && state.addr === addr;

@@ -1,5 +1,5 @@
-// Nostr identity for Pot (Paytaca DID bounty): find, verify and publish nostr-bch-bind v1 bindings, and read the two
-// other published formats (pennyops bch-nostr-bind.v1, bch-identity-bridge 1.0.0) under the interop rule in
+// Nostr identity for Pot (Paytaca DID bounty): find, verify and publish nostr-bch-bind v1 bindings, and read the three
+// other published formats (NIP-39 kind 10011 `bch:` claims, pennyops bch-nostr-bind.v1, bch-identity-bridge 1.0.0) under the interop rule in
 // ARCHITECTURE.md. Browser-safe: global WebSocket, nostr-tools, libauth. Every event from a relay is verified here,
 // in the page, before anything is shown as verified.
 import { decode as nip19decode, npubEncode } from 'nostr-tools/nip19';
@@ -12,7 +12,11 @@ export { PROTO, PROOF_LOCKTIME, bindingMessage, verifyBinding };
 // it answered every connection with HTTP 521 on 2026-11-15, which browsers log as a console error on every pot page.)
 export const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.primal.net', 'wss://relay.snort.social'];
 export const SIGNMESSAGE_LIMIT = 253; // the Paytaca extension signed messages of 253+ bytes differently (paytaca-app#831)
-export const FORMAT = { v1: 'nostr-bch-bind v1', pennyops: 'pennyops bch-nostr-bind.v1', bib: 'bch-identity-bridge 1.0.0' };
+export const FORMAT = { v1: 'nostr-bch-bind v1', nip39: 'NIP-39', pennyops: 'pennyops bch-nostr-bind.v1', bib: 'bch-identity-bridge 1.0.0' };
+/** NIP-39 "external identities": a replaceable kind 10011 list of ["i", "<platform>:<identity>", "<proof>"] tags. */
+export const NIP39_KIND = 10011;
+/** NIP-39's verification text; for a `bch:<cashaddr>` claim the proof is the address's signmessage over it (base64). */
+export const nip39Text = (npubHex) => `Verifying that I control the following Nostr public key: ${npubEncode(npubHex)}`;
 const MAX_EVENTS = 500;
 
 const fresh = (e) => ({ id: e.id, pubkey: e.pubkey, created_at: e.created_at, kind: e.kind, tags: e.tags, content: e.content, sig: e.sig });
@@ -47,14 +51,54 @@ function verifyPennyops(ev) {
   return r === true ? { ok: true, npub: ev.pubkey, addr, created: Number(parts[4]) || ev.created_at, proofKind: 'signmessage' } : { ok: false, reason: r };
 }
 
+/** The bch: claims of a NIP-39 event: [{ addr, sig }] (the cashaddr keeps its prefix, as NIP-39 identities do). */
+const nip39Claims = (ev) => (Array.isArray(ev.tags) ? ev.tags : [])
+  .filter((t) => Array.isArray(t) && t[0] === 'i' && typeof t[1] === 'string' && t[1].startsWith('bch:'))
+  .map((t) => ({ addr: t[1].slice(4), sig: t[2] }));
+
+/** One NIP-39 bch: claim, given an event whose Nostr signature already checked. */
+function checkNip39Claim(ev, base, checks, { addr, sig }) {
+  const text = nip39Text(ev.pubkey);
+  let r = typeof sig === 'string' && sig ? null : 'missing BCH signature (third element of the i tag)';
+  if (!r) { try { r = verifySignMessage(addr, text, sig.trim()); } catch (e) { r = 'malformed BCH signature: ' + (e?.message ?? e); } }
+  const ok = r === true;
+  return { ...base, format: 'nip39', addr, ok, ...(ok ? {} : { reason: r }), proofKind: 'signmessage', checks: [...checks,
+    { label: `NIP-39 claim ["i", "bch:${addr}", …] in the npub's kind ${NIP39_KIND} identity list`, ok: true },
+    { label: 'BCH signed message by the address over NIP-39\'s text "Verifying that I control the following Nostr public key: <this npub>"', ok }] };
+}
+
 /**
- * Verifies one event in any of the three formats. → null for events that are not BCH bindings (other apps' kind 30078),
+ * Every BCH binding one event carries: one per bch: claim for NIP-39 (kind 10011), else [checkBinding(ev)].
+ * → [] for events that are not BCH bindings. A kind 10011 with no bch: claim gives [{ format: 'nip39', none: true }], so
+ * it still replaces an older list that had one. Never throws.
+ */
+export function checkBindings(raw) {
+  let ev;
+  try { ev = fresh(raw); } catch { return []; }
+  if (ev.kind !== NIP39_KIND) { const c = checkBinding(ev); return c ? [c] : []; }
+  const base = { d: null, eventId: String(ev.id ?? ''), npub: String(ev.pubkey ?? ''), created: ev.created_at };
+  let sigOk = false;
+  try { sigOk = verifyEvent(ev); } catch { /* malformed */ }
+  const claims = nip39Claims(ev);
+  const checks = [{ label: 'Nostr signature (NIP-01 id + BIP-340 Schnorr by the npub)', ok: sigOk }];
+  if (!sigOk) return [{ ...base, format: 'nip39', addr: claims[0]?.addr, ok: false, reason: 'bad nostr id or signature', checks }];
+  if (!claims.length) return [{ ...base, format: 'nip39', ok: false, none: true, reason: 'no bch: claim', checks }];
+  return claims.map((c) => checkNip39Claim(ev, base, checks, c));
+}
+
+/**
+ * Verifies one event in any of the four formats (for a NIP-39 list: the claim for opts.addr, else the first valid one). → null for events that are not BCH bindings (other apps' kind 30078),
  * else { format, d, ok, reason?, revoked?, npub, addr, created, proofKind, eventId, checks[] }. Never throws.
  * checks: what was verified, for the page to list (label, ok).
  */
-export function checkBinding(raw) {
+export function checkBinding(raw, { addr: want } = {}) {
   let ev;
   try { ev = fresh(raw); } catch { return null; }
+  if (ev.kind === NIP39_KIND) {
+    const all = checkBindings(ev).filter((c) => !c.none);
+    const same = (c) => !want || String(c.addr).toLowerCase() === String(want).toLowerCase();
+    return all.find((c) => c.ok && same(c)) ?? all.find(same) ?? null;
+  }
   const d = tagOf(ev, 'd')?.[1];
   const base = { d, eventId: String(ev.id ?? ''), npub: String(ev.pubkey ?? ''), created: ev.created_at };
   let format;
@@ -92,17 +136,18 @@ export function checkBinding(raw) {
 
 /** The public key that made the BCH proof of a verified binding (for "judge by npub"): signmessage recovers it,
  * a wc-tx proof carries it in its P2PKH unlocking script. Returns hex or null; checked against the address. */
-export function bindingPubkey(raw) {
+export function bindingPubkey(raw, addr) {
   try {
     const ev = fresh(raw);
-    const v = checkBinding(ev);
+    const v = checkBinding(ev, { addr });
     if (!v?.ok) return null;
-    let pub = null;
-    const proof = ev.kind === 30078 && v.format === 'v1' ? tagOf(ev, 'proof') : ['proof', 'signmessage', tagOf(ev, 'i')?.[2]];
+    let pub = null, signed = ev.content;
+    let proof = ev.kind === 30078 && v.format === 'v1' ? tagOf(ev, 'proof') : ['proof', 'signmessage', tagOf(ev, 'i')?.[2]];
+    if (v.format === 'nip39') { proof = ['proof', 'signmessage', nip39Claims(ev).find((c) => c.addr === v.addr)?.sig]; signed = nip39Text(ev.pubkey); }
     if (proof[1] === 'signmessage') {
-      const s = base64ToBin(proof[2]);
+      const s = base64ToBin(String(proof[2]).trim());
       if (s[0] < 31 || s[0] > 34) return null; // only compressed keys can be a judge key
-      pub = secp256k1.recoverPublicKeyCompressed(s.slice(1), s[0] - 31, messageHash(ev.content));
+      pub = secp256k1.recoverPublicKeyCompressed(s.slice(1), s[0] - 31, messageHash(signed));
     } else if (proof[1] === 'wc-tx') {
       const t = decodeTransaction(hexToBin(JSON.parse(proof[2]).tx));
       const u = t.inputs[0].unlockingBytecode;
@@ -117,25 +162,44 @@ export function bindingPubkey(raw) {
 
 /**
  * Picks what a set of events says, per the rules: per binding slot (v1: npub + d; pennyops: npub) the newest event that
- * verifies decides, a signed `revoked` (v1) drops the slot; across slots the newest valid binding wins.
+ * verifies decides, a signed `revoked` (v1) drops the slot; across slots the newest valid binding wins. NIP-39 lists are
+ * replaceable: per npub the newest kind 10011 with a valid signature decides all of its bch: claims, older lists don't count.
  * bch-identity-bridge claims are reported in `unverifiable`, never chosen.
  * → { best, valid[], revoked[], skipped[], unverifiable[] }
  */
 export function pickBindings(events, { addr } = {}) {
-  const byId = new Map();
+  const byId = new Map(), lists = new Map();
   for (const e of events) {
+    if (e?.kind === NIP39_KIND) {
+      const cs = checkBindings(e);
+      if (!cs.length || lists.get(cs[0].eventId)?.sigOk) continue; // same rule: a forged copy never shadows the real one
+      lists.set(cs[0].eventId, { cs, e, sigOk: cs[0].reason !== 'bad nostr id or signature' });
+      continue;
+    }
     const c = checkBinding(e);
     if (!c || byId.get(c.eventId)?.c.ok) continue; // a forged copy (same id, bad sig) never shadows the real one
     byId.set(c.eventId, { c, e });
   }
   const slots = new Map(), skipped = [], unverifiable = [];
+  const newestList = new Map(); // npub -> the newest validly signed kind 10011 (NIP-01 replaceable: newest, then lowest id)
+  for (const l of lists.values()) {
+    if (!l.sigOk) { skipped.push(l.cs[0]); continue; }
+    const cur = newestList.get(l.cs[0].npub);
+    if (!cur || l.e.created_at > cur.e.created_at || (l.e.created_at === cur.e.created_at && l.cs[0].eventId < cur.cs[0].eventId)) newestList.set(l.cs[0].npub, l);
+  }
+  const listValid = [];
+  const sameAddr = (a) => !addr || String(a).toLowerCase() === String(addr).toLowerCase();
+  for (const l of newestList.values()) for (const c of l.cs) {
+    if (c.none || !sameAddr(c.addr)) continue;
+    if (c.ok) listValid.push({ ...c, event: fresh(l.e) }); else skipped.push(c);
+  }
   for (const { c, e } of byId.values()) {
     if (c.format === 'bib') { unverifiable.push(c); continue; }
     if (c.reason === 'bad nostr id or signature') { skipped.push(c); continue; }
     const key = c.format === 'v1' ? `${c.npub}|${c.d}` : `${c.npub}|pennyops`;
     (slots.get(key) ?? slots.set(key, []).get(key)).push({ c, e });
   }
-  const valid = [], revoked = [];
+  const valid = [...listValid], revoked = [];
   for (const list of slots.values()) {
     list.sort((a, b) => b.e.created_at - a.e.created_at || (a.c.eventId < b.c.eventId ? -1 : 1));
     for (const { c, e } of list) {
@@ -144,7 +208,6 @@ export function pickBindings(events, { addr } = {}) {
       skipped.push(c);
     }
   }
-  const sameAddr = (a) => !addr || String(a).toLowerCase() === String(addr).toLowerCase();
   const chosen = valid.filter((v) => sameAddr(v.addr)).sort((a, b) => b.created - a.created);
   return { best: chosen[0] ?? null, valid: chosen, revoked, skipped, unverifiable };
 }
@@ -196,7 +259,8 @@ export async function queryRelays(filters, { relays = DEFAULT_RELAYS, timeoutMs 
 export async function resolveNpub(npub, opts = {}) {
   const hex = npubToHex(npub);
   if (!hex) throw Object.assign(new Error('That is not an npub1… or a 64-character hex Nostr key.'), { code: 'BAD_NPUB' });
-  const q = await queryRelays([{ kinds: [30078], authors: [hex], limit: MAX_EVENTS }, { kinds: [31234], authors: [hex], limit: 50 }], opts);
+  const q = await queryRelays([{ kinds: [30078], authors: [hex], limit: MAX_EVENTS }, { kinds: [NIP39_KIND], authors: [hex], limit: 10 },
+    { kinds: [31234], authors: [hex], limit: 50 }], opts);
   const r = pickBindings(q.events.filter((e) => e.pubkey === hex), { addr: opts.addr });
   if (opts.prefix) r.valid = r.valid.filter((v) => v.addr.startsWith(opts.prefix + ':'));
   r.best = r.valid[0] ?? null;
@@ -211,9 +275,10 @@ export async function resolveNpub(npub, opts = {}) {
   return { ...r, npub: hex, relays: q.relays };
 }
 
-/** BCH address → the npubs with a valid binding to it (newest first), via the indexed `i` tag. */
+/** BCH address → the npubs with a valid binding to it (newest first), via the indexed `i` tag (our v1, pennyops and NIP-39
+ * all put `bch:<cashaddr>` there). */
 export async function findByAddress(addr, opts = {}) {
-  const q = await queryRelays([{ kinds: [30078], '#i': [`bch:${addr}`], limit: MAX_EVENTS }], opts);
+  const q = await queryRelays([{ kinds: [30078, NIP39_KIND], '#i': [`bch:${addr}`], limit: MAX_EVENTS }], opts);
   return { ...pickBindings(q.events, { addr }), relays: q.relays };
 }
 

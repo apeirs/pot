@@ -8,6 +8,9 @@ import { signMessage, bindingMessage } from '../src/bindverify.mjs';
 import { signWcTx } from '../src/bind.mjs';
 import { checkBinding, resolveNpub, unsignedBinding, SIGNMESSAGE_LIMIT } from '../src/nostrbind.mjs';
 import { makeLoginVerifier, loginChallenge, parseChallenge, LOGIN_TTL, POT_DOMAIN } from '../src/login.mjs';
+import { makeTryIt } from '../src/tryit.mjs';
+import { nsecEncode } from 'nostr-tools/nip19';
+import { binToHex } from '@bitauth/libauth';
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -134,6 +137,48 @@ await t('end to end: the binding is found over relays by npub, then the challeng
 await t('a verifier needs a domain and a hex npub', () => {
   let n = 0; try { makeLoginVerifier({}); } catch { n++; } try { desk().v.issue(npubEncode(npubA)); } catch { n++; }
   eq(n, 2);
+});
+
+// ---------- "Try it without a wallet" (src/tryit.mjs, the #/bind demo)
+/** a secretKey() that hands out fixed test keys and remembers them, so the test can look for them in the output */
+const fixedKeys = () => { const made = []; let i = 0; return { made, secretKey: () => { const x = k('try-it ' + i++); made.push(x); return x; } }; };
+const tryIt = (o = {}) => makeTryIt({ domain: POT_DOMAIN, now: () => T + 1000, ...o });
+
+await t('try it: throwaway binding verifies, the NIP-39 form verifies, and the login challenge-response succeeds', () => {
+  const d = tryIt();
+  eq(d.binding.result.ok, true, d.binding.result.reason); eq(d.binding.result.format, 'v1'); eq(d.binding.result.npub, d.me.npub); eq(d.binding.result.addr, d.me.addr);
+  eq(d.binding.result.checks.every((c) => c.ok), true, 'all binding checks');
+  eq(d.nip39.result.ok, true, d.nip39.result.reason); eq(d.nip39.result.format, 'nip39'); eq(d.nip39.result.addr, d.me.addr);
+  eq(d.login.result.ok, true, d.login.result.reason); eq(d.login.result.npub, d.me.npub); eq(d.login.result.addr, d.me.addr);
+  eq(parseChallenge(d.login.challenge.text).domain, POT_DOMAIN);
+  eq(d.me.addr.startsWith('bitcoincash:q'), true); eq(tryIt({ prefix: 'bchtest' }).me.addr.startsWith('bchtest:q'), true);
+});
+
+await t('try it: copied proof on another npub, a borrowed address, an edited event and a replayed nonce are each refused with the reason', () => {
+  const d = tryIt();
+  const [c1, c2] = d.attack('copied');
+  eq(c1.ok, false); eq(c1.reason, 'content npub is not the event signer');
+  eq(c2.ok, false); eq(c2.reason, 'signature is not by this address');
+  const [b1, b2] = d.attack('borrowed');
+  eq(b1.ok, false); eq(b1.reason, 'signature is not by this address');
+  eq(b2.ok, false); eq(b2.reason, 'signature is not by this address');
+  const [e1, e2] = d.attack('edited');
+  eq(e1.ok, false); eq(e1.reason, 'bad nostr id or signature');
+  eq(e2.ok, false); eq(e2.reason, 'this challenge was already used to log in (replay)');
+  eq(d.binding.result.ok && checkBinding(d.binding.event).ok, true, 'the real binding still verifies after the attacks');
+  let threw = false; try { d.attack('nope'); } catch { threw = true; } eq(threw, true);
+});
+
+await t('try it: no secret key leaves the demo (not in its output, as hex or nsec), and each run makes new keys', () => {
+  const f = fixedKeys();
+  const d = tryIt({ secretKey: f.secretKey });
+  const out = JSON.stringify([d, d.attack('copied'), d.attack('borrowed'), d.attack('edited')]);
+  eq(f.made.length, 4, 'two identities x (nostr, bch)');
+  for (const x of f.made) { if (out.includes(binToHex(x)) || out.includes(nsecEncode(x))) throw new Error('a secret key is in the output'); }
+  if (/nsec1|"(nsec|sk|priv|bch|secret)"/.test(out)) throw new Error('secret-looking field in the output');
+  const a = tryIt(), b = tryIt();
+  if (a.me.npub === b.me.npub || a.me.addr === b.me.addr) throw new Error('two runs share a key');
+  if (a.me.npub === getPublicKey(f.made[0])) throw new Error('default keys are not random');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
