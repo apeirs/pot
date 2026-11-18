@@ -1,6 +1,6 @@
 # Pot: bounties you can trust, on Bitcoin Cash
 
-> **BCH BLAZE 2026 entry (Mainnet track)** · Deck: https://apeir.dk/online/pot/deck.pdf · Video (90 s): https://apeir.dk/online/pot/pot-demo.mp4 · Repo: https://github.com/apeirs/pot
+> **BCH BLAZE 2026 entry (Mainnet track)** · Deck: https://apeir.dk/online/pot/deck.pdf · Video (104 s): https://apeir.dk/online/pot/pot-demo.mp4 · Repo: https://github.com/apeirs/pot
 > (pre-hackathon prep: https://gist.github.com/apeirs/aff6b63931c57e1a0729a72770abb325, tag `prehack-2026-11-14`;
 > pre-hackathon demo: https://apeir.dk/online/pot-chipnet/) · EMBER2026 CashTokens address:
 > `bitcoincash:zrk8th0g30cn28um7apj85un4l9vvd37lyf6j3l26f`
