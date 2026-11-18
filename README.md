@@ -16,6 +16,8 @@ Live: **https://apeir.dk/online/pot/** (mainnet) · https://apeir.dk/online/pot/
    (Connect wallet, top right) and press "Send from my wallet". The pot updates within seconds.
 3. **Identity**: click the ✓ npub badge next to the judge. The [#/bind](https://apeir.dk/online/pot/#/bind?q=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns)
    view fetches the judge's Nostr binding from the relays and verifies both signatures in the page.
+   No wallet? [`#/bind?try`](https://apeir.dk/online/pot/#/bind?try) binds throwaway keys, logs in with them and shows
+   forged proofs being refused.
 4. See the other two paths done: [pot A](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.977865.5000.08788b65839dcd5d) was awarded (both coins to one winner in one transaction), pot B was
    refunded after its deadline (links in the table below).
 5. **Create** your own pot: Connect wallet (top right) with Paytaca or Selene over WizardConnect, then Create a pot
@@ -60,6 +62,18 @@ More in [ARCHITECTURE.md](ARCHITECTURE.md).
 A poster or judge can bind their BCH address to a Nostr key, so a pot shows who stands behind it and a pot can be
 judged by, or awarded to, an npub instead of a raw address.
 
+**Paytaca Decentralized Identity: requirement → where to see it** (no wallet needed for any link below)
+
+| Requirement | Where to see it |
+|---|---|
+| 1. Identity creation and management | [`#/bind`](https://apeir.dk/online/pot/#/bind): your BCH wallet (Paytaca over WizardConnect, or any wallet with Sign Message) and your Nostr key (NIP-07 extension, a key made in the page, or a pasted nsec). Keys stay in the wallet or the page; no server, no account. |
+| 2. Cryptographic binding | [`#/bind?try`](https://apeir.dk/online/pot/#/bind?try): throwaway BCH and Nostr keys (two different keys) both sign one message, and the page verifies both signatures. Its three "try to cheat" buttons show a copied proof, a borrowed address and an edited event refused, each with the reason. Live: the demo judge's mainnet binding, signed with Paytaca (`test/mainnet-binding.json`). |
+| 3. Decentralized discovery | Three public Nostr relays, by npub or by address: [`#/bind?q=<npub>`](https://apeir.dk/online/pot/#/bind?q=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns), [`#/bind?q=<address>`](https://apeir.dk/online/pot/#/bind?q=bitcoincash:qzjta36gk6ycrmlcnaln07z4yda305lepy7tp7cnvp), and the ✓ npub badge on [demo pot C](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.979645.5000.2ab2c2e8333f7708). |
+| 4. Verification and authentication | Every event is verified in the browser (`src/bindverify.mjs`, `src/nostrbind.mjs`). Challenge-response login: [`#/bind?try`](https://apeir.dk/online/pot/#/bind?try) logs in with the throwaway identity and refuses a replay; [`#/bind?login=<npub>`](https://apeir.dk/online/pot/#/bind?login=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns) issues a real challenge to the demo judge's bound address. Reusable: `src/login.mjs`. Tests: `test/login-test.mjs`, `test/identity-test.mjs`. |
+| 5. Working demo and documentation | This site, this README, [ARCHITECTURE.md](ARCHITECTURE.md) (identity section), `npm test`. |
+| Stretch: pay by identity | [`#/new`](https://apeir.dk/online/pot/#/new): pick "Someone else" as judge and enter an npub; the page resolves its binding and shows the bound address and the judge key it recovered. A judge's award form takes the winner as an npub too, and resolves it again when the award is made. |
+| Stretch: interoperability | Reads and verifies NIP-39 `bch:` claims (kind 10011) and pennyops `bch-nostr-bind.v1` as well as its own format (see "Compatible with" below). |
+
 - **Bind** ([`#/bind`](https://apeir.dk/online/pot/#/bind)): connect Paytaca over WizardConnect (the same session as the
   pot), pick a Nostr key (a NIP-07 extension if you have one, else a fresh key made in the page or a pasted nsec; the
   secret never leaves the page and is never stored), then sign one short message with both keys. The BCH side is
@@ -71,6 +85,9 @@ judged by, or awarded to, an npub instead of a raw address.
 - **Pay by identity**: the create form's judge field and the award form's winner field accept an npub. The page finds
   the npub's binding on the relays, verifies both signatures, and uses the bound address (or its key, for a judge). It
   re-resolves at award time and puts the npub in the wallet prompt.
+- **Try it without a wallet** ([`#/bind?try`](https://apeir.dk/online/pot/#/bind?try)): the page makes a throwaway BCH key and
+  a throwaway Nostr key at runtime (never stored, shown or published; the address is never funded), binds them, verifies
+  the binding, logs in with it, then lets you try three forgeries and shows why each is refused. Code: `src/tryit.mjs`.
 - **Log in with it** ([`#/bind?login=<npub>`](https://apeir.dk/online/pot/#/bind)): the challenge-response check of the
   Paytaca spec. The page finds the npub's binding on the relays and issues a challenge naming this site, the npub, a random
   16-byte nonce and the time. The bound address signs it (a pasted `signmessage`, or the same never-mined WizardConnect
@@ -85,7 +102,10 @@ judged by, or awarded to, an npub instead of a raw address.
   `npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns` with a Paytaca `signmessage` signature, event
   `adf8a87d…fa1c100f` (also `test/mainnet-binding.json`, checked by `npm test`).
 
-**Compatible with:** pennyops `bch-nostr-bind.v1` (kind 30078, `d` = `bch-nostr-bind`, written for Cashonize #405, the
+**Compatible with:** NIP-39 (kind 10011 identity list): a `["i", "bch:<cashaddr>", "<signmessage>"]` claim whose BCH
+signature is over NIP-39's own text `Verifying that I control the following Nostr public key: <npub>` is read and fully
+verified (found by npub and by address; the newest list replaces older ones), and shown as format "NIP-39". It was
+checked against a live NIP-39 `bch:` binding published by another BLAZE project (tenxagent/blaze-bch). pennyops `bch-nostr-bind.v1` (kind 30078, `d` = `bch-nostr-bind`, written for Cashonize #405, the
 prior art for paying an npub) is read and fully verified, signature from its `i` tag. alberdioni `bch-identity-bridge`
 (kind 31234) carries no BCH proof on the relay, so it is shown greyed out as unverifiable, never as verified.
 
@@ -138,7 +158,7 @@ Each rule of the contract, the attack it stops, and the test that tries it (`npm
 ## Run it
 ```
 npm ci
-npm test        # contract, sweep, app and network tests on a mock network (118 cases)
+npm test        # contract, sweep, app and network tests on a mock network (126 cases)
 npm run dev     # builds the page into web/dist and serves it on http://127.0.0.1:8917
 npm run e2e     # chipnet end to end in headless Chrome (needs Chrome and the test wallet's chipnet coins)
 ```

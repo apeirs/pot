@@ -13,7 +13,7 @@ flowchart LR
   R <--> W["User's wallet: Paytaca, Selene (hdwalletv1)"]
   W -- signed tx --> R --> Browser
   Browser -- "listunspent, get_history, broadcast" --> F[("Fulcrum: fulcrum.greyh.at, bch.imaginary.cash")]
-  Browser -- "kind 30078 binding events" --> N[("Nostr relays: nos.lol, relay.primal.net, relay.snort.social")]
+  Browser -- "binding events (kind 30078, NIP-39 kind 10011)" --> N[("Nostr relays: nos.lol, relay.primal.net, relay.snort.social")]
 ```
 
 ## The contract (`contracts/Pot.cash`, 15 `require`s)
@@ -77,7 +77,9 @@ signed its award as judge. The `@wizardconnect/wallet` test wallet (`e2e/wallet.
   (`resolve`). Events are verified as a fresh copy of the wire fields (nostr-tools caches a pass on the object).
 - **Use in Pot**: poster and judge get a verified npub badge (it opens `#/bind?q=<npub>` with every check shown); the judge and winner fields accept an npub, resolved and
   re-verified at award time. pennyops `bch-nostr-bind.v1` events are verified too; kind 31234 bridge events have no BCH
-  proof and show as unverifiable. The Nostr secret stays in a closure (never the DOM or localStorage).
+  proof and show as unverifiable. NIP-39 kind 10011 lists are read too (`checkBindings`): each `["i","bch:<cashaddr>",<sig>]`
+  claim is valid when the event signature checks and `<sig>` is the address's signmessage over NIP-39's text
+  `Verifying that I control the following Nostr public key: <npub>`; per npub the newest validly signed list decides. The Nostr secret stays in a closure (never the DOM or localStorage).
 
 - **Login** (`src/login.mjs`, the `#/bind` login box): challenge `nostr-bch-bind:login:v1\ndomain:<app>\nnpub:<hex>\nnonce:<16 random bytes hex>\nissued:<unix>`
   (~175 bytes, under the 253-byte signmessage limit; it can never parse as a binding message). `makeLoginVerifier({domain})`
@@ -85,10 +87,16 @@ signed its award as judge. The `@wizardconnect/wallet` test wallet (`e2e/wallet.
   skew), with a valid binding of that npub and a `signmessage`/`wc-tx` proof by the bound address over the exact text.
   A success consumes the nonce (replay refused); a failed signature leaves it for a retry; an expired one is dropped.
 
+- **Try it without a wallet** (`src/tryit.mjs`, `#/bind?try`): `makeTryIt` makes two throwaway identities at runtime
+  (separate BCH and Nostr keys, held in its closure only, never returned, stored or published), binds one with the same
+  `unsignedBinding`/`checkBinding` as the real flow, logs it in through `makeLoginVerifier`, and runs the forgeries
+  (copied proof on another npub, a borrowed address, an edited event, a replayed login) through the same checks.
+
 ## Tests
-- `npm test` (118 cases, mock network): every contract rule (each rejected case names its Pot.cash line), the sweep
+- `npm test` (126 cases, mock network): every contract rule (each rejected case names its Pot.cash line), the sweep
   planner, the app's transactions, the identity vectors (incl. the real mainnet binding), the login (valid signmessage
-  and wc-tx, wrong address, another npub's binding, expired, replayed, forged, foreign domain, garbage proofs), and the
+  and wc-tx, wrong address, another npub's binding, expired, replayed, forged, foreign domain, garbage proofs), NIP-39
+  claims (a stored vector, refusals, replacement, relay lookup), the no-wallet demo (flow, forgeries, no key in its output), and the
   network layer.
 - `npm run e2e`: the built page in headless Chrome against chipnet with a test wallet over the real relay: pairing,
   create, a rejected request, resume after reload, top-up, a wallet-signed binding (refused by the network as
