@@ -272,6 +272,15 @@ await t('real mainnet binding signed by the Paytaca extension verifies, and reso
   eq(checkBinding(tampered).ok, false);
 });
 
+await t('real mainnet binding signed by the Selene web wallet (wc-tx over WizardConnect) verifies, and recovers its pot key', () => {
+  const { event } = JSON.parse(readFileSync(new URL('./mainnet-binding-selene.json', import.meta.url)));
+  const c = checkBinding(event);
+  eq(c.ok, true, c.reason); eq(c.addr, 'bitcoincash:qp4s8eq2875dtv7n7pk5a4g65t47jxsuwut5wgkf63'); eq(c.proofKind, 'wc-tx');
+  eq(bindingPubkey(event), '03a714b50ec7dd02b586be4e2f0427161918e7d54811555b10801e47acbc694273'); // = judge key of the Selene pots
+  const tampered = { ...event, content: event.content.replace('qp4s8eq2', 'qp4s8eq3') };
+  eq(checkBinding(tampered).ok, false);
+});
+
 await t('p2pkhAddress helper and the test keys agree', () => { eq(p2pkhAddress(secp256k1.derivePublicKeyCompressed(bchA), 'bitcoincash'), addrA); });
 
 console.log(`\n${pass} passed, ${fail} failed`);

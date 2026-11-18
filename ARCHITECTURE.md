@@ -60,8 +60,8 @@ plainly in the README self-audit.
 5. The session is kept in localStorage per network, so a reload resumes it without a new QR.
 
 **Verified on mainnet** (txids in the README): Paytaca extension 0.27.5 signed create, top-up, award (two contract
-inputs in one tx), refund after the deadline, and a `wc-tx` identity proof. Selene web v2026.10.02 created a pot and
-signed its award as judge. The `@wizardconnect/wallet` test wallet (`e2e/wallet.mjs`) runs every path on chipnet.
+inputs in one tx), refund after the deadline, and a `wc-tx` identity proof. Selene web v2026.10.02 created pots,
+signed an award as judge, a top-up, a refund after the deadline, a `wc-tx` binding and a `wc-tx` login challenge. The `@wizardconnect/wallet` test wallet (`e2e/wallet.mjs`) runs every path on chipnet.
 
 ## Nostr identity binding (`nostr-bch-bind v1`, Paytaca DID)
 `src/bindverify.mjs` (verify, offline), `src/nostrbind.mjs` (relays, resolve), `web/bind.js` (the `#/bind` view, badges).
@@ -93,7 +93,7 @@ signed its award as judge. The `@wizardconnect/wallet` test wallet (`e2e/wallet.
   (copied proof on another npub, a borrowed address, an edited event, a replayed login) through the same checks.
 
 ## Tests
-- `npm test` (126 cases, mock network): every contract rule (each rejected case names its Pot.cash line), the sweep
+- `npm test` (127 cases, mock network): every contract rule (each rejected case names its Pot.cash line), the sweep
   planner, the app's transactions, the identity vectors (incl. the real mainnet binding), the login (valid signmessage
   and wc-tx, wrong address, another npub's binding, expired, replayed, forged, foreign domain, garbage proofs), NIP-39
   claims (a stored vector, refusals, replacement, relay lookup), the no-wallet demo (flow, forgeries, no key in its output), and the

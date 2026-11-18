@@ -1,0 +1,30 @@
+{
+ "note": "A real binding of a Selene web wallet address (receive/0), BCH side signed by Selene v2026.10.02 over WizardConnect as the never-mined wc-tx proof, Nostr side by a throwaway key; published 2026-11-18 from #/bind on the live page.",
+ "event": {
+  "id": "a40ad1d6e26feea719ef8a8c2c55f82b24268571e07802948bacf529bb7f6705",
+  "pubkey": "9023797548960d3c5dd6939c2ffc017f55ae6ba617520abf5bc1ed05084e1fb2",
+  "created_at": 1794962001,
+  "kind": 30078,
+  "tags": [
+   [
+    "d",
+    "bch-bind:bitcoincash:qp4s8eq2875dtv7n7pk5a4g65t47jxsuwut5wgkf63"
+   ],
+   [
+    "i",
+    "bch:bitcoincash:qp4s8eq2875dtv7n7pk5a4g65t47jxsuwut5wgkf63"
+   ],
+   [
+    "proof",
+    "wc-tx",
+    "{\"tx\":\"02000000017f7cc95915785f941468bc46687a88ab640e94b99f68c6658e61a4fe0d24145e020000006441e95cbf782520b5736e82e9ec0759eb80d92ae3bb77dea04b7830c56653ec49a6e05553c5c8a7cfa3b9a50c6baba116a58f24338d1f910085635d81f772ba8a18612103a714b50ec7dd02b586be4e2f0427161918e7d54811555b10801e47acbc694273feffffff020000000000000000346a116e6f7374722d6263682d62696e643a7631208272fe9aa9a472d081a73564bc636f431391b07cbc8b18203f4ee5c18aaff0c2be240000000000001976a9146b03e40a3fa8d5b3d3f06d4ed51aa2ebe91a1c7788ac005786f4\",\"source\":{\"valueSatoshis\":\"9706\",\"lockingBytecode\":\"76a9146b03e40a3fa8d5b3d3f06d4ed51aa2ebe91a1c7788ac\"}}"
+   ],
+   [
+    "alt",
+    "BCH address binding (nostr-bch-bind v1)"
+   ]
+  ],
+  "content": "nostr-bch-bind:v1\nnpub:9023797548960d3c5dd6939c2ffc017f55ae6ba617520abf5bc1ed05084e1fb2\nbch:bitcoincash:qp4s8eq2875dtv7n7pk5a4g65t47jxsuwut5wgkf63\ncreated:1794962001",
+  "sig": "bb606bf6372036649e095dac8f1c860c004428616e45b540bba384b0c6d16b8417474120cf4d6d628784fead92bb4fc78c1c3d41d691946109e0955de58a4040"
+ }
+}

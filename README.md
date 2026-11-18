@@ -66,15 +66,15 @@ judged by, or awarded to, an npub instead of a raw address.
 
 | Requirement | Where to see it |
 |---|---|
-| 1. Identity creation and management | [`#/bind`](https://apeir.dk/online/pot/#/bind): your BCH wallet (Paytaca over WizardConnect, or any wallet with Sign Message) and your Nostr key (NIP-07 extension, a key made in the page, or a pasted nsec). Keys stay in the wallet or the page; no server, no account. |
-| 2. Cryptographic binding | [`#/bind?try`](https://apeir.dk/online/pot/#/bind?try): throwaway BCH and Nostr keys (two different keys) both sign one message, and the page verifies both signatures. Its three "try to cheat" buttons show a copied proof, a borrowed address and an edited event refused, each with the reason. Live: the demo judge's mainnet binding, signed with Paytaca (`test/mainnet-binding.json`). |
+| 1. Identity creation and management | [`#/bind`](https://apeir.dk/online/pot/#/bind): your BCH wallet (Paytaca or Selene over WizardConnect, or any wallet with Sign Message) and your Nostr key (NIP-07 extension, a key made in the page, or a pasted nsec). Keys stay in the wallet or the page; no server, no account. |
+| 2. Cryptographic binding | [`#/bind?try`](https://apeir.dk/online/pot/#/bind?try): throwaway BCH and Nostr keys (two different keys) both sign one message, and the page verifies both signatures. Its three "try to cheat" buttons show a copied proof, a borrowed address and an edited event refused, each with the reason. Live: the demo judge's mainnet binding, signed with Paytaca (`test/mainnet-binding.json`), and a Selene address bound with the never-mined WizardConnect proof (`test/mainnet-binding-selene.json`). |
 | 3. Decentralized discovery | Three public Nostr relays, by npub or by address: [`#/bind?q=<npub>`](https://apeir.dk/online/pot/#/bind?q=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns), [`#/bind?q=<address>`](https://apeir.dk/online/pot/#/bind?q=bitcoincash:qzjta36gk6ycrmlcnaln07z4yda305lepy7tp7cnvp), and the ✓ npub badge on [demo pot C](https://apeir.dk/online/pot/#/p/1.a4bec748b68981eff89f7f37f855237b17d3f909.02259a322083854c4f76b91595c6f7630bcdcdb6407b66d3b09d0f9e3ef2683095.979645.5000.2ab2c2e8333f7708). |
-| 4. Verification and authentication | Every event is verified in the browser (`src/bindverify.mjs`, `src/nostrbind.mjs`). Challenge-response login: [`#/bind?try`](https://apeir.dk/online/pot/#/bind?try) logs in with the throwaway identity and refuses a replay; [`#/bind?login=<npub>`](https://apeir.dk/online/pot/#/bind?login=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns) issues a real challenge to the demo judge's bound address. Reusable: `src/login.mjs`. Tests: `test/login-test.mjs`, `test/identity-test.mjs`. |
+| 4. Verification and authentication | Every event is verified in the browser (`src/bindverify.mjs`, `src/nostrbind.mjs`). Challenge-response login: [`#/bind?try`](https://apeir.dk/online/pot/#/bind?try) logs in with the throwaway identity and refuses a replay; [`#/bind?login=<npub>`](https://apeir.dk/online/pot/#/bind?login=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns) issues a real challenge to the demo judge's bound address. A real wallet logged in on mainnet: Selene signed the challenge for [its bound npub](https://apeir.dk/online/pot/#/bind?login=npub1jq3hja2gjcxnchwkjwwzllqp0a26u6axzafq406mc8ks2zzwr7eql69vtp) (see Wallets below). Reusable: `src/login.mjs`. Tests: `test/login-test.mjs`, `test/identity-test.mjs`. |
 | 5. Working demo and documentation | This site, this README, [ARCHITECTURE.md](ARCHITECTURE.md) (identity section), `npm test`. |
 | Stretch: pay by identity | [`#/new`](https://apeir.dk/online/pot/#/new): pick "Someone else" as judge and enter an npub; the page resolves its binding and shows the bound address and the judge key it recovered. A judge's award form takes the winner as an npub too, and resolves it again when the award is made. |
 | Stretch: interoperability | Reads and verifies NIP-39 `bch:` claims (kind 10011) and pennyops `bch-nostr-bind.v1` as well as its own format (see "Compatible with" below). |
 
-- **Bind** ([`#/bind`](https://apeir.dk/online/pot/#/bind)): connect Paytaca over WizardConnect (the same session as the
+- **Bind** ([`#/bind`](https://apeir.dk/online/pot/#/bind)): connect Paytaca or Selene over WizardConnect (the same session as the
   pot), pick a Nostr key (a NIP-07 extension if you have one, else a fresh key made in the page or a pasted nsec; the
   secret never leaves the page and is never stored), then sign one short message with both keys. The BCH side is
   either a wallet `signmessage` signature (pasted) or a WizardConnect-signed transaction that commits to the message
@@ -113,7 +113,7 @@ prior art for paying an npub) is read and fully verified, signature from its `i`
 | Wallet | Network | Create | Top-up | Award (contract input) | Refund (contract input) | Identity proof (wc-tx) |
 |---|---|---|---|---|---|---|
 | Paytaca browser extension 0.27.5 | mainnet | yes | yes | yes | yes | yes |
-| Selene web app v2026.10.02 (app.selene.cash) | mainnet | yes | not tried | yes | not tried | not tried |
+| Selene web app v2026.10.02 (app.selene.cash) | mainnet | yes | yes | yes | yes | yes |
 | `@wizardconnect/wallet` test wallet (`e2e/wallet.mjs`) | chipnet | yes | yes | yes | yes | yes |
 | Cashonize | | not tried yet | | | | |
 
@@ -122,6 +122,15 @@ prior art for paying an npub) is read and fully verified, signature from its `i`
   Its signature prompt names the action and marks the winner output as its own. Selene's first `wallet_ready` carries
   no keys and the next one does; the page now waits for a `wallet_ready` with a receive key (before this fix, pairing
   Selene ended in "The wallet did not share an address").
+- **Selene top-up and refund**: a second Selene pot ([`68d57d5b…`](https://blockchair.com/bitcoin-cash/transaction/68d57d5bfea94c42ca327eeccc298901787098531c52d995e07fd70f1366a797),
+  10,000 sats, deadline two blocks ahead) was topped up from the pot page with 2,000 sats ([`033259da…`](https://blockchair.com/bitcoin-cash/transaction/033259dadce6a5ff114b4bc2b522ed1fe47f1cd40ba6b785049956ceeed7b80d)),
+  and after the deadline block Selene took both coins back in one refund ([`094ad31d…`](https://blockchair.com/bitcoin-cash/transaction/094ad31d5e5b0c4b907defe44e3cc9677f876ada30e9e7d178eca9bad6c034c9), 11,232 sats, locktime = the deadline).
+- **Selene identity and login**: on [`#/bind`](https://apeir.dk/online/pot/#/bind) Selene signed the never-mined binding
+  transaction for its receive address 0 and a new Nostr key ([npub1jq3hja2…](https://apeir.dk/online/pot/#/bind?q=npub1jq3hja2gjcxnchwkjwwzllqp0a26u6axzafq406mc8ks2zzwr7eql69vtp),
+  `wc-tx`, published to all 3 relays, kept as `test/mainnet-binding-selene.json`). Then
+  [`#/bind?login=<npub>`](https://apeir.dk/online/pot/#/bind?login=npub1jq3hja2gjcxnchwkjwwzllqp0a26u6axzafq406mc8ks2zzwr7eql69vtp)
+  issued a challenge, Selene signed it (prompt "Signature only, never sent: log in to apeir.dk/online/pot as npub1jq3hja2…"),
+  and the page answered `✓ Logged in as npub1jq3hja2… / bitcoincash:qp4s8eq2…` with all 8 checks passed.
 - **Paytaca identity proof**: on mainnet the wallet signed the binding transaction (prompt "Signature only, never sent"),
   the page verified it, and a broadcast attempt was refused by the network: `bad-txns-nonfinal (code 64)`.
 
@@ -158,7 +167,7 @@ Each rule of the contract, the attack it stops, and the test that tries it (`npm
 ## Run it
 ```
 npm ci
-npm test        # contract, sweep, app and network tests on a mock network (126 cases)
+npm test        # contract, sweep, app and network tests on a mock network (127 cases)
 npm run dev     # builds the page into web/dist and serves it on http://127.0.0.1:8917
 npm run e2e     # chipnet end to end in headless Chrome (needs Chrome and the test wallet's chipnet coins)
 ```
