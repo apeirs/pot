@@ -133,6 +133,11 @@ prior art for paying an npub) is read and fully verified, signature from its `i`
   and the page answered `✓ Logged in as npub1jq3hja2… / bitcoincash:qp4s8eq2…` with all 8 checks passed.
 - **Paytaca identity proof**: on mainnet the wallet signed the binding transaction (prompt "Signature only, never sent"),
   the page verified it, and a broadcast attempt was refused by the network: `bad-txns-nonfinal (code 64)`.
+- **Paytaca login**: [`#/bind?login=npub1dw38…`](https://apeir.dk/online/pot/#/bind?login=npub1dw38lu4qufjs85t6m6hwgk0v5we8puwlyzed9yj3rjjav6skjvnqjuhuns)
+  issued a challenge for the live binding above, the Paytaca extension signed it (prompt "Signature only, never sent:
+  log in to apeir.dk/online/pot"; nothing broadcast, no funds moved), and the page answered
+  `✓ Logged in as npub1dw38… / bitcoincash:qzjta36g…` with all 8 checks passed (2026-11-18 06:56 UTC,
+  [screenshot](docs/paytaca-login.png)).
 
 
 ## Self-audit
